@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
+import Barcode from 'react-barcode';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -7,10 +8,8 @@ import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { storage, TreeData } from '../utils/storage';
-import { nfcUtils } from '../utils/nfc';
-import { NFCInstructions } from '../components/NFCInstructions';
 import { toast } from 'sonner';
-import { MapPin, TreePine, LogOut, Wifi, WifiOff, Tag, HelpCircle } from 'lucide-react';
+import { MapPin, TreePine, LogOut, Wifi, WifiOff, Barcode as BarcodeIcon, X } from 'lucide-react';
 
 const TREE_SPECIES = [
   'Narra',
@@ -34,7 +33,6 @@ export function FieldUserDashboard() {
   const navigate = useNavigate();
   const [user, setUser] = useState(storage.getCurrentUser());
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [showInstructions, setShowInstructions] = useState(false);
 
   // Form state
   const [treeName, setTreeName] = useState('');
@@ -44,7 +42,7 @@ export function FieldUserDashboard() {
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [isCapturingLocation, setIsCapturingLocation] = useState(false);
-  const [isWritingNFC, setIsWritingNFC] = useState(false);
+  const [generatedTreeId, setGeneratedTreeId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user || user.role !== 'field_user') {
@@ -114,38 +112,18 @@ export function FieldUserDashboard() {
 
     // Save to local storage
     storage.addTree(treeData);
-    toast.success('Tree data saved to database');
+    setGeneratedTreeId(treeData.id);
+    toast.success('Tree data saved & barcode generated!');
+  };
 
-    // Write to NFC tag
-    if (nfcUtils.isSupported()) {
-      setIsWritingNFC(true);
-      try {
-        await nfcUtils.writeToTag(treeData);
-        toast.success('Tree data written to NFC tag! You can remove the tag now.');
-        
-        // Reset form
-        setTreeName('');
-        setSpecies('');
-        setHealthStatus('Good');
-        setAge('');
-        setLatitude(null);
-        setLongitude(null);
-      } catch (error: any) {
-        toast.error(`NFC Error: ${error.message}`);
-      } finally {
-        setIsWritingNFC(false);
-      }
-    } else {
-      toast.warning('NFC not supported. Data saved to database only.');
-      
-      // Reset form
-      setTreeName('');
-      setSpecies('');
-      setHealthStatus('Good');
-      setAge('');
-      setLatitude(null);
-      setLongitude(null);
-    }
+  const handleClear = () => {
+    setTreeName('');
+    setSpecies('');
+    setHealthStatus('Good');
+    setAge('');
+    setLatitude(null);
+    setLongitude(null);
+    setGeneratedTreeId(null);
   };
 
   const handleLogout = () => {
@@ -171,11 +149,6 @@ export function FieldUserDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="outline" size="sm" onClick={() => setShowInstructions(true)}>
-              <HelpCircle className="w-4 h-4 mr-2" />
-              <span className="hidden sm:inline">NFC Help</span>
-              <span className="sm:hidden">Help</span>
-            </Button>
             <div className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs ${isOnline ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
               {isOnline ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
               {isOnline ? 'Online' : 'Offline'}
@@ -187,158 +160,145 @@ export function FieldUserDashboard() {
           </div>
         </div>
 
-        {/* Quick Data Entry Form */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Tree Data Entry</CardTitle>
-            <CardDescription>
-              Fill in the tree information and write to NFC tag
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Tree Name */}
-              <div className="space-y-2">
-                <Label htmlFor="treeName">Tree Name / Identifier</Label>
-                <Input
-                  id="treeName"
-                  type="text"
-                  placeholder="e.g., Tree-001, Oak-Central-Park"
-                  value={treeName}
-                  onChange={(e) => setTreeName(e.target.value)}
-                  required
-                />
+        {generatedTreeId ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Barcode Generated</CardTitle>
+              <CardDescription>
+                Scan this barcode to retrieve tree information later.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-center">
+              <div className="bg-white p-4 inline-block">
+                <Barcode value={generatedTreeId} />
               </div>
+              <p className="text-sm text-gray-600 mt-4">ID: {generatedTreeId}</p>
+              <Button onClick={handleClear} className="mt-6">
+                <X className="w-4 h-4 mr-2" />
+                Clear and Add New Tree
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>Quick Tree Data Entry</CardTitle>
+              <CardDescription>
+                Fill in the tree information to generate a barcode
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Tree Name */}
+                <div className="space-y-2">
+                  <Label htmlFor="treeName">Tree Name / Identifier</Label>
+                  <Input
+                    id="treeName"
+                    type="text"
+                    placeholder="e.g., Tree-001, Oak-Central-Park"
+                    value={treeName}
+                    onChange={(e) => setTreeName(e.target.value)}
+                    required
+                  />
+                </div>
 
-              {/* Species */}
-              <div className="space-y-2">
-                <Label htmlFor="species">Species</Label>
-                <Select value={species} onValueChange={setSpecies} required>
-                  <SelectTrigger id="species">
-                    <SelectValue placeholder="Select tree species" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TREE_SPECIES.map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                {/* Species */}
+                <div className="space-y-2">
+                  <Label htmlFor="species">Species</Label>
+                  <Select value={species} onValueChange={setSpecies} required>
+                    <SelectTrigger id="species">
+                      <SelectValue placeholder="Select tree species" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TREE_SPECIES.map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {s}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              {/* Health Status */}
-              <div className="space-y-3">
-                <Label>Health Status</Label>
-                <RadioGroup value={healthStatus} onValueChange={(value) => setHealthStatus(value as TreeData['healthStatus'])}>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Excellent" id="excellent" />
-                    <Label htmlFor="excellent" className="cursor-pointer">Excellent</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Good" id="good" />
-                    <Label htmlFor="good" className="cursor-pointer">Good</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Fair" id="fair" />
-                    <Label htmlFor="fair" className="cursor-pointer">Fair</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Poor" id="poor" />
-                    <Label htmlFor="poor" className="cursor-pointer">Poor</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Dead" id="dead" />
-                    <Label htmlFor="dead" className="cursor-pointer">Dead</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              {/* Age */}
-              <div className="space-y-2">
-                <Label htmlFor="age">Age (Years)</Label>
-                <Input
-                  id="age"
-                  type="number"
-                  min="0"
-                  placeholder="e.g., 5"
-                  value={age}
-                  onChange={(e) => setAge(e.target.value)}
-                  required
-                />
-              </div>
-
-              {/* Location Capture */}
-              <div className="space-y-2">
-                <Label>Location (GPS Coordinates)</Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={captureLocation}
-                  disabled={isCapturingLocation}
-                >
-                  <MapPin className="w-4 h-4 mr-2" />
-                  {isCapturingLocation ? 'Capturing Location...' : 'Capture Current Location'}
-                </Button>
-                {latitude && longitude && (
-                  <div className="p-3 bg-green-50 rounded-md text-sm">
-                    <div className="flex items-center gap-2 mb-1">
-                      <MapPin className="w-4 h-4 text-green-600" />
-                      <span className="text-green-700">Location Captured</span>
+                {/* Health Status */}
+                <div className="space-y-3">
+                  <Label>Health Status</Label>
+                  <RadioGroup value={healthStatus} onValueChange={(value) => setHealthStatus(value as TreeData['healthStatus'])}>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="Excellent" id="excellent" />
+                      <Label htmlFor="excellent" className="cursor-pointer">Excellent</Label>
                     </div>
-                    <div className="text-gray-600">
-                      <div>Latitude: {latitude.toFixed(6)}</div>
-                      <div>Longitude: {longitude.toFixed(6)}</div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="Good" id="good" />
+                      <Label htmlFor="good" className="cursor-pointer">Good</Label>
                     </div>
-                  </div>
-                )}
-              </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="Fair" id="fair" />
+                      <Label htmlFor="fair" className="cursor-pointer">Fair</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="Poor" id="poor" />
+                      <Label htmlFor="poor" className="cursor-pointer">Poor</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="Dead" id="dead" />
+                      <Label htmlFor="dead" className="cursor-pointer">Dead</Label>
+                    </div>
+                  </RadioGroup>
+                </div>
 
-              {/* Submit Button */}
-              <div className="pt-4">
-                <Button type="submit" className="w-full" size="lg" disabled={isWritingNFC}>
-                  {isWritingNFC ? (
-                    <>
-                      <Tag className="w-5 h-5 mr-2 animate-pulse" />
-                      Writing to NFC Tag... Hold tag near device
-                    </>
-                  ) : (
-                    <>
-                      <Tag className="w-5 h-5 mr-2" />
-                      Save & Write to NFC Tag
-                    </>
+                {/* Age */}
+                <div className="space-y-2">
+                  <Label htmlFor="age">Age (Years)</Label>
+                  <Input
+                    id="age"
+                    type="number"
+                    min="0"
+                    placeholder="e.g., 5"
+                    value={age}
+                    onChange={(e) => setAge(e.target.value)}
+                    required
+                  />
+                </div>
+
+                {/* Location Capture */}
+                <div className="space-y-2">
+                  <Label>Location (GPS Coordinates)</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={captureLocation}
+                    disabled={isCapturingLocation}
+                  >
+                    <MapPin className="w-4 h-4 mr-2" />
+                    {isCapturingLocation ? 'Capturing Location...' : 'Capture Current Location'}
+                  </Button>
+                  {latitude && longitude && (
+                    <div className="p-3 bg-green-50 rounded-md text-sm">
+                      <div className="flex items-center gap-2 mb-1">
+                        <MapPin className="w-4 h-4 text-green-600" />
+                        <span className="text-green-700">Location Captured</span>
+                      </div>
+                      <div className="text-gray-600">
+                        <div>Latitude: {latitude.toFixed(6)}</div>
+                        <div>Longitude: {longitude.toFixed(6)}</div>
+                      </div>
+                    </div>
                   )}
-                </Button>
-                {!nfcUtils.isSupported() && (
-                  <p className="text-xs text-orange-600 mt-2 text-center">
-                    ⚠️ NFC not available on this device. Data will be saved to database only.
-                  </p>
-                )}
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+                </div>
 
-        {/* Info Card */}
-        <Card className="mt-4 bg-blue-50 border-blue-200">
-          <CardContent className="pt-6">
-            <div className="text-sm text-blue-900">
-              <p className="mb-2">📱 <strong>Instructions:</strong></p>
-              <ul className="list-disc list-inside space-y-1 text-blue-800">
-                <li>Fill in all tree information fields</li>
-                <li>Use the "Capture Location" button to get GPS coordinates</li>
-                <li>Click "Save & Write to NFC Tag" to save data and write to tag</li>
-                <li>Hold NFC tag near your device when prompted</li>
-                <li>Works offline - data syncs when connection is restored</li>
-              </ul>
-            </div>
-          </CardContent>
-        </Card>
+                {/* Submit Button */}
+                <div className="pt-4">
+                  <Button type="submit" className="w-full" size="lg">
+                    <BarcodeIcon className="w-5 h-5 mr-2" />
+                    Save & Generate Barcode
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        )}
       </div>
-
-      {/* NFC Instructions Dialog */}
-      <NFCInstructions isOpen={showInstructions} onClose={() => setShowInstructions(false)} />
     </div>
   );
 }

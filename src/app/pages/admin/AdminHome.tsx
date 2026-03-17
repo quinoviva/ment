@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react';
 import { storage, TreeData } from '../../utils/storage';
-import { nfcUtils } from '../../utils/nfc';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
-import { TreePine, Tag, TrendingUp, Activity, MapPin } from 'lucide-react';
+import { TreePine, TrendingUp, Activity, MapPin, Barcode as BarcodeIcon } from 'lucide-react';
 import { toast } from 'sonner';
+import { BarcodeScanner } from 'react-zxing';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 
 export function AdminHome() {
   const [trees, setTrees] = useState<TreeData[]>([]);
-  const [isScanning, setIsScanning] = useState(false);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [scannedTree, setScannedTree] = useState<TreeData | null>(null);
 
   useEffect(() => {
@@ -21,23 +22,17 @@ export function AdminHome() {
     setTrees(data);
   };
 
-  const handleScanNFC = async () => {
-    if (!nfcUtils.isSupported()) {
-      toast.error('NFC is not supported on this device');
-      return;
-    }
-
-    setIsScanning(true);
-    toast.info('Hold NFC tag near your device...');
-
-    try {
-      const treeData = await nfcUtils.readFromTag();
-      setScannedTree(treeData);
-      toast.success('NFC tag read successfully!');
-    } catch (error: any) {
-      toast.error(`NFC Error: ${error.message}`);
-    } finally {
-      setIsScanning(false);
+  const handleBarcodeScan = (result: any) => {
+    if (result) {
+      const treeId = result.getText();
+      const tree = storage.getTreeById(treeId);
+      if (tree) {
+        setScannedTree(tree);
+        toast.success('Barcode scanned successfully!');
+      } else {
+        toast.error('Tree not found for the scanned barcode.');
+      }
+      setIsScannerOpen(false);
     }
   };
 
@@ -114,28 +109,22 @@ export function AdminHome() {
         </Card>
       </div>
 
-      {/* NFC Scanner */}
+      {/* Barcode Scanner */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <Card>
           <CardHeader>
-            <CardTitle>NFC Tag Scanner</CardTitle>
-            <CardDescription>Scan NFC tags to view tree information</CardDescription>
+            <CardTitle>Barcode Scanner</CardTitle>
+            <CardDescription>Scan a tree's barcode to view its information</CardDescription>
           </CardHeader>
           <CardContent>
             <Button
-              onClick={handleScanNFC}
-              disabled={isScanning}
+              onClick={() => setIsScannerOpen(true)}
               className="w-full"
               size="lg"
             >
-              <Tag className="w-5 h-5 mr-2" />
-              {isScanning ? 'Scanning... Hold tag near device' : 'Scan NFC Tag'}
+              <BarcodeIcon className="w-5 h-5 mr-2" />
+              Scan Barcode
             </Button>
-            {!nfcUtils.isSupported() && (
-              <p className="text-xs text-orange-600 mt-2 text-center">
-                ⚠️ NFC not available on this device
-              </p>
-            )}
           </CardContent>
         </Card>
 
@@ -144,7 +133,7 @@ export function AdminHome() {
           <Card className="border-green-200 bg-green-50">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Tag className="w-5 h-5 text-green-600" />
+                <BarcodeIcon className="w-5 h-5 text-green-600" />
                 Scanned Tree Data
               </CardTitle>
             </CardHeader>
@@ -218,6 +207,15 @@ export function AdminHome() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Scan Barcode</DialogTitle>
+          </DialogHeader>
+          <BarcodeScanner onResult={handleBarcodeScan} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
