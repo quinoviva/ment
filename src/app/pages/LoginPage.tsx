@@ -4,13 +4,21 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { storage } from '../utils/storage';
 import { initializeSampleData } from '../utils/sampleData';
 import { toast } from 'sonner';
 import { TreePine, Lock, User } from 'lucide-react';
 
+// Import Firebase functions and config
+import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
+import { getFirestore, collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore'; // Firestore imports
+import { app } from '../firebase/firebase'; // Import initialized app
+import { storage, User as AppUser } from '../utils/storage'; // Rename User to AppUser to avoid conflict
+
+const auth = getAuth(app); // Initialize Firebase Auth
+const db = getFirestore(app); // Initialize Firestore
+
 export function LoginPage() {
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState(''); // For Firebase, this will be email
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
@@ -20,25 +28,48 @@ export function LoginPage() {
     initializeSampleData();
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => { // Made async
     e.preventDefault();
     setIsLoading(true);
 
-    setTimeout(() => {
-      const user = storage.login(username, password);
-      
-      if (user) {
-        toast.success(`Welcome, ${username}!`);
-        if (user.role === 'field_user') {
-          navigate('/field-user');
-        } else {
-          navigate('/admin');
-        }
+    try {
+      // Firebase Authentication
+      const userCredential = await signInWithEmailAndPassword(auth, username, password);
+      const firebaseUser = userCredential.user;
+
+      // Fetch user role from Firestore using UID
+      const userProfile = await storage.fetchUserByUid(firebaseUser.uid);
+
+      let appUserRole: AppUser['role'];
+      if (userProfile && userProfile.role) {
+        appUserRole = userProfile.role;
       } else {
-        toast.error('Invalid credentials');
+        // Fallback or error handling if role is not found
+        console.error(`Role not found for user ${firebaseUser.uid}. Defaulting to field_user.`);
+        appUserRole = 'field_user'; // Default role, or could throw an error
+        // Optionally, could also create a default user profile in Firestore here if it doesn't exist
       }
+
+      // Create a user object conforming to our AppUser interface
+      const user: AppUser = {
+        username: firebaseUser.email || username, // Use email from Firebase Auth
+        role: appUserRole,
+      };
+
+      storage.setCurrentUser(user); // Save user info to local storage for app-wide access
+      toast.success(`Welcome, ${user.username}!`);
+      
+      if (user.role === 'field_user') {
+        navigate('/field-user');
+      } else {
+        navigate('/admin');
+      }
+    } catch (error: any) {
+      console.error("Firebase login error:", error);
+      toast.error(`Login failed: ${error.message}`);
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
 
   return (
@@ -58,13 +89,13 @@ export function LoginPage() {
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="username">Email</Label> {/* Changed label and placeholder to Email */}
               <div className="relative">
                 <User className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                 <Input
                   id="username"
-                  type="text"
-                  placeholder="Enter username"
+                  type="email" // Changed to type="email" for better input handling
+                  placeholder="Enter email"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="pl-10"
@@ -93,10 +124,10 @@ export function LoginPage() {
           </form>
 
           <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-600 mb-2">Demo Credentials:</p>
+            <p className="text-sm text-gray-600 mb-2">Demo Credentials (for Firebase Auth):</p>
             <div className="space-y-1 text-xs text-gray-500">
-              <div><strong>Field User:</strong> field_user / field2026</div>
-              <div><strong>Admin User:</strong> admin_user / admin2026</div>
+              <div><strong>Field User:</strong> field_user@example.com / field2026</div> {/* Using example.com for email */}
+              <div><strong>Admin User:</strong> admin_user@example.com / admin2026</div> {/* Using example.com for email */}
             </div>
           </div>
         </CardContent>
