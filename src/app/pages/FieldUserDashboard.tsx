@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import Barcode from 'react-barcode';
 import { Button } from '../components/ui/button';
@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { storage, TreeData } from '../utils/storage';
 import { toast } from 'sonner';
-import { MapPin, TreePine, LogOut, Wifi, WifiOff, Barcode as BarcodeIcon, X } from 'lucide-react';
+import { MapPin, TreePine, LogOut, Wifi, WifiOff, Barcode as BarcodeIcon, X, Printer, Download } from 'lucide-react';
 
 const TREE_SPECIES = [
   'Narra',
@@ -43,6 +43,7 @@ export function FieldUserDashboard() {
   const [longitude, setLongitude] = useState<number | null>(null);
   const [isCapturingLocation, setIsCapturingLocation] = useState(false);
   const [generatedTreeId, setGeneratedTreeId] = useState<string | null>(null);
+  const barcodeRef = useRef<HTMLCanvasElement>(null); // Ref to capture the barcode canvas
 
   useEffect(() => {
     if (!user || user.role !== 'field_user') {
@@ -116,6 +117,62 @@ export function FieldUserDashboard() {
     toast.success('Tree data saved & barcode generated!');
   };
 
+  const handlePrint = () => {
+    if (!barcodeRef.current || !generatedTreeId) {
+      toast.error('Barcode not ready for printing.');
+      return;
+    }
+
+    const canvas = barcodeRef.current;
+    const imageUrl = canvas.toDataURL('image/png'); // Get image data URL
+
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Print Barcode</title>
+            <style>
+              body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+              img { max-width: 100%; max-height: 100%; }
+            </style>
+          </head>
+          <body>
+            <img src="${imageUrl}" alt="Barcode" />
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      // Use setTimeout to ensure content is loaded before printing
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 500);
+    } else {
+      toast.error('Could not open print window. Please allow pop-ups.');
+    }
+  };
+
+  const handleSave = () => {
+    if (!barcodeRef.current || !generatedTreeId) {
+      toast.error('Barcode not ready for saving.');
+      return;
+    }
+
+    const canvas = barcodeRef.current;
+    const imageUrl = canvas.toDataURL('image/png');
+
+    const link = document.createElement('a');
+    link.href = imageUrl;
+    link.download = `${generatedTreeId}.png`; // Filename for the downloaded image
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Barcode saved as PNG');
+  };
+
+
   const handleClear = () => {
     setTreeName('');
     setSpecies('');
@@ -165,18 +222,35 @@ export function FieldUserDashboard() {
             <CardHeader>
               <CardTitle>Barcode Generated</CardTitle>
               <CardDescription>
-                Scan this barcode to retrieve tree information later.
+                Scan this barcode to retrieve tree information later. You can also print or save it.
               </CardDescription>
             </CardHeader>
             <CardContent className="text-center">
               <div className="bg-white p-4 inline-block">
-                <Barcode value={generatedTreeId} />
+                <Barcode
+                  value={generatedTreeId}
+                  ref={barcodeRef} // Attach ref here
+                  width={2} // Example styling, adjust as needed
+                  height={100}
+                  // The 'react-barcode' library typically renders to a canvas element.
+                  // The ref will point to this canvas element.
+                />
               </div>
               <p className="text-sm text-gray-600 mt-4">ID: {generatedTreeId}</p>
-              <Button onClick={handleClear} className="mt-6">
-                <X className="w-4 h-4 mr-2" />
-                Clear and Add New Tree
-              </Button>
+              <div className="flex justify-center gap-4 mt-6 flex-wrap">
+                <Button variant="outline" onClick={handlePrint}>
+                  <Printer className="w-4 h-4 mr-2" />
+                  Print Barcode
+                </Button>
+                <Button variant="outline" onClick={handleSave}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Save Barcode
+                </Button>
+                <Button onClick={handleClear}>
+                  <X className="w-4 h-4 mr-2" />
+                  Clear and Add New Tree
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ) : (
