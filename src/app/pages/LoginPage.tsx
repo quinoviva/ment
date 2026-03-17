@@ -11,7 +11,7 @@ import { TreePine, Lock, User } from 'lucide-react';
 // Import Firebase functions and config
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { getFirestore, collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore'; // Firestore imports
-import { app } from '../firebase/firebase'; // Import initialized app
+import { app } from "../../firebase/firebase";
 import { storage, User as AppUser } from '../utils/storage'; // Rename User to AppUser to avoid conflict
 
 const auth = getAuth(app); // Initialize Firebase Auth

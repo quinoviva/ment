@@ -3,6 +3,8 @@ import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 
 // Your web app's Firebase configuration
+// NOTE: For production, it's recommended to load these from environment variables
+// using Vite's import.meta.env. The current setup might have issues with env var loading.
 const firebaseConfig = {
   apiKey: "AIzaSyC2QiPEJwW4OsSYDcjzOqZKcUe5h-5ZE1w",
   authDomain: "ment-31705.firebaseapp.com",
