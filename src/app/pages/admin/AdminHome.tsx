@@ -5,7 +5,7 @@ import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { TreePine, TrendingUp, Activity, MapPin, Barcode as BarcodeIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import { BarcodeScanner } from 'react-zxing';
+import { useZxing } from "react-zxing";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 
 export function AdminHome() {
@@ -21,6 +21,14 @@ export function AdminHome() {
     const data = storage.getTrees();
     setTrees(data);
   };
+
+  // Integration of react-zxing hook
+  const { ref } = useZxing({
+    onDecodeResult(result) {
+      handleBarcodeScan(result);
+    },
+    paused: !isScannerOpen, // Only run camera when dialog is open
+  });
 
   const handleBarcodeScan = (result: any) => {
     if (result) {
@@ -58,7 +66,7 @@ export function AdminHome() {
   return (
     <div className="p-8">
       <div className="mb-6">
-        <h1 className="text-3xl mb-2">Dashboard Overview</h1>
+        <h1 className="text-3xl font-bold mb-2">Dashboard Overview</h1>
         <p className="text-gray-600">Monitor and manage tree inventory</p>
       </div>
 
@@ -66,50 +74,50 @@ export function AdminHome() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm">Total Trees</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Trees</CardTitle>
             <TreePine className="h-4 w-4 text-gray-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl">{trees.length}</div>
+            <div className="text-2xl font-bold">{trees.length}</div>
             <p className="text-xs text-gray-500 mt-1">Registered in system</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm">Healthy Trees</CardTitle>
+            <CardTitle className="text-sm font-medium">Healthy Trees</CardTitle>
             <Activity className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl">{healthCounts.Excellent + healthCounts.Good}</div>
+            <div className="text-2xl font-bold">{healthCounts.Excellent + healthCounts.Good}</div>
             <p className="text-xs text-gray-500 mt-1">Excellent & Good condition</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm">Need Attention</CardTitle>
+            <CardTitle className="text-sm font-medium">Need Attention</CardTitle>
             <TrendingUp className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl">{healthCounts.Fair + healthCounts.Poor}</div>
+            <div className="text-2xl font-bold">{healthCounts.Fair + healthCounts.Poor}</div>
             <p className="text-xs text-gray-500 mt-1">Fair & Poor condition</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm">Dead Trees</CardTitle>
+            <CardTitle className="text-sm font-medium">Dead Trees</CardTitle>
             <TreePine className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl">{healthCounts.Dead}</div>
+            <div className="text-2xl font-bold">{healthCounts.Dead}</div>
             <p className="text-xs text-gray-500 mt-1">Require removal</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Barcode Scanner */}
+      {/* Barcode Scanner Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <Card>
           <CardHeader>
@@ -128,7 +136,7 @@ export function AdminHome() {
           </CardContent>
         </Card>
 
-        {/* Scanned Tree Data */}
+        {/* Scanned Tree Data Display */}
         {scannedTree && (
           <Card className="border-green-200 bg-green-50">
             <CardHeader>
@@ -166,21 +174,13 @@ export function AdminHome() {
                     <p className="text-sm">{scannedTree.latitude.toFixed(6)}, {scannedTree.longitude.toFixed(6)}</p>
                   </div>
                 </div>
-                <div>
-                  <span className="text-sm text-gray-600">Added By:</span>
-                  <p className="font-medium">{scannedTree.addedBy}</p>
-                </div>
-                <div>
-                  <span className="text-sm text-gray-600">Date Added:</span>
-                  <p className="text-sm">{new Date(scannedTree.dateAdded).toLocaleString()}</p>
-                </div>
               </div>
             </CardContent>
           </Card>
         )}
       </div>
 
-      {/* Health Status Distribution */}
+      {/* Health Distribution Chart */}
       <Card>
         <CardHeader>
           <CardTitle>Health Status Distribution</CardTitle>
@@ -193,7 +193,7 @@ export function AdminHome() {
                 <div className="w-24 text-sm font-medium">{status}</div>
                 <div className="flex-1 bg-gray-200 rounded-full h-8 overflow-hidden">
                   <div
-                    className={`h-full ${getHealthStatusColor(status as TreeData['healthStatus'])} flex items-center justify-end pr-3 text-white text-sm transition-all`}
+                    className={`h-full ${getHealthStatusColor(status as TreeData['healthStatus'])} flex items-center justify-end pr-3 text-white text-xs transition-all`}
                     style={{ width: trees.length > 0 ? `${(count / trees.length) * 100}%` : '0%' }}
                   >
                     {count > 0 && count}
@@ -208,12 +208,22 @@ export function AdminHome() {
         </CardContent>
       </Card>
 
+      {/* Scanner Dialog */}
       <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Scan Barcode</DialogTitle>
           </DialogHeader>
-          <BarcodeScanner onResult={handleBarcodeScan} />
+          <div className="flex flex-col items-center justify-center p-4">
+            {/* The video element that receives the hook ref */}
+            <video 
+              ref={ref} 
+              className="rounded-lg border-2 border-dashed border-gray-300 w-full aspect-video object-cover" 
+            />
+            <p className="mt-4 text-sm text-gray-500 text-center">
+              Position the barcode within the camera frame to scan.
+            </p>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
