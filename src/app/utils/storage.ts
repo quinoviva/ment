@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app"; // Assuming this is needed for app instance
-import { getAuth, signOut, UserCredential, User as FirebaseUser } from 'firebase/auth'; // Import signOut and FirebaseUser
-import { getFirestore, collection, addDoc, getDocs, doc, setDoc, updateDoc, deleteDoc, getDoc, query, where, DocumentSnapshot, QuerySnapshot } from 'firebase/firestore';
-import { app } from '../firebase/firebase'; // Import initialized app from firebase.ts
+import { getAuth, signOut, UserCredential, User as FirebaseUser, createUserWithEmailAndPassword } from 'firebase/auth'; // Import signOut and FirebaseUser, createUserWithEmailAndPassword
+import { getFirestore, collection, addDoc, getDocs, doc, setDoc, updateDoc, deleteDoc, getDoc, query, where, DocumentSnapshot, QuerySnapshot, Timestamp } from 'firebase/firestore'; // Firestore imports
+import { app } from '../../firebase/firebase'; // Import initialized app from firebase.ts
 
 export interface TreeData {
   id: string;
@@ -11,17 +11,16 @@ export interface TreeData {
   age: number;
   latitude: number;
   longitude: number;
-  dateAdded: string;
+  dateAdded: string; // Store as ISO string
   addedBy: string;
 }
 
 // User interface for application state, not directly Firebase User object
 export interface User {
-  username: string; // This might be email or display name from Firebase
+  username: string; // This will be the email from Firebase Auth
   role: 'field_user' | 'admin_user';
 }
 
-// Removed TREES_STORAGE_KEY as data will be in Firestore
 const CURRENT_USER_KEY = 'menro_current_user';
 
 // Initialize Firestore and Auth
@@ -35,8 +34,7 @@ export const storage = {
     const querySnapshot: QuerySnapshot = await getDocs(treesCollectionRef);
     const trees: TreeData[] = [];
     querySnapshot.forEach((doc: DocumentSnapshot) => {
-      // Safely cast data and add ID
-      const treeData = doc.data() as TreeData; // Assuming Firestore data matches TreeData shape including ID
+      const treeData = doc.data() as TreeData;
       trees.push({ ...treeData, id: doc.id });
     });
     return trees;
@@ -44,7 +42,6 @@ export const storage = {
 
   async addTree(tree: TreeData): Promise<void> {
     const treesCollectionRef = collection(db, 'trees');
-    // Using setDoc with the client-generated ID to maintain consistency
     await setDoc(doc(db, 'trees', tree.id), tree);
   },
 
@@ -62,8 +59,8 @@ export const storage = {
     const treeDocRef = doc(db, 'trees', id);
     const docSnap = await getDoc(treeDocRef);
     if (docSnap.exists()) {
-      const data = docSnap.data() as TreeData; // Assuming all fields are present
-      return { ...data, id: docSnap.id }; // Add the Firestore document ID
+      const data = docSnap.data() as TreeData;
+      return { ...data, id: docSnap.id };
     }
     return undefined;
   },
@@ -111,5 +108,46 @@ export const storage = {
     return undefined; // Return undefined if user not found or role is invalid
   },
 
-  // Removed obsolete login function as Firebase Auth is used in LoginPage.tsx
+  // Function to get all users (for admin interface)
+  async getAllUsers(): Promise<User[]> {
+    const usersCollectionRef = collection(db, 'users');
+    const querySnapshot = await getDocs(usersCollectionRef);
+    const users: User[] = [];
+    querySnapshot.forEach((doc) => {
+      const userData = doc.data();
+      // Ensure essential fields are present before casting
+      if (userData.username && userData.role) {
+        users.push({
+          username: userData.username,
+          role: userData.role,
+        });
+      }
+    });
+    return users;
+  },
+
+  // Function to add a new user
+  async addUser(email: string, password: string, role: User['role']): Promise<void> {
+    try {
+      // 1. Create user in Firebase Authentication
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const firebaseUser = userCredential.user;
+      const uid = firebaseUser.uid;
+
+      // 2. Save user details and role to Firestore
+      const usersCollectionRef = collection(db, 'users');
+      await setDoc(doc(usersCollectionRef, uid), { // Use UID as document ID for easy lookup
+        uid: uid,
+        email: email,
+        username: email, // Use email as username for simplicity
+        role: role,
+        createdAt: Timestamp.now(), // Optional: add creation timestamp
+      });
+      console.log(`User ${email} added with role ${role} and UID ${uid}`);
+    } catch (error: any) {
+      console.error("Error adding user:", error);
+      throw error; // Re-throw error to be handled by caller
+    }
+  }
 };
+

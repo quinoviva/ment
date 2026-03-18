@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, Outlet, Link, useLocation } from 'react-router';
 import { storage } from '../../utils/storage';
 import { Button } from '../../components/ui/button';
-import { TreePine, Home, Map, Database, User, LogOut } from 'lucide-react';
+import { TreePine, Home, Map, Database, User, LogOut, Users } from 'lucide-react'; // Added Users icon
 import { toast } from 'sonner';
 
 export function AdminDashboard() {
@@ -83,6 +83,16 @@ export function AdminDashboard() {
               >
                 <User className="w-4 h-4 mr-3" />
                 Profile
+              </Button>
+            </Link>
+            {/* New Link for User Management */}
+            <Link to="/admin/users">
+              <Button
+                variant={isActive('/admin/users') ? 'default' : 'ghost'}
+                className="w-full justify-start"
+              >
+                <Users className="w-4 h-4 mr-3" />
+                Users
               </Button>
             </Link>
           </div>
