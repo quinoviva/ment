@@ -1,3 +1,4 @@
+import React from 'react';
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -73,46 +74,80 @@ export function TreeMap({ trees, selectedTreeId, onTreeClick }: TreeMapProps) {
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
 
-    // Center on Pototan, Iloilo with a high maxZoom
     const map = L.map(mapRef.current, {
       maxZoom: 22,
       zoomControl: true,
-      wheelPxPerZoomLevel: 60 // Smoother zooming
+      wheelPxPerZoomLevel: 60 
     }).setView([10.9388, 122.6322], 13);
 
-    // Google Hybrid Layer (Satellite + Labels) - supports up to zoom 22
+    // --- BASE LAYERS ---
+    
+    // Google Hybrid (Satellite + Labels)
     const googleHybrid = L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
       maxZoom: 22,
       subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
       attribution: '&copy; Google Maps'
     });
 
-    // Standard OSM Layer as a fallback
-    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; OpenStreetMap contributors'
+    // Google Satellite (Pure)
+    const googleSatellite = L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+      maxZoom: 22,
+      subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+      attribution: '&copy; Google Maps'
     });
 
+    // Google Terrain
+    const googleTerrain = L.tileLayer('https://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
+      maxZoom: 22,
+      subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+      attribution: '&copy; Google Maps'
+    });
+
+    // CartoDB Dark Matter (High contrast for markers)
+    const darkMatter = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+      subdomains: 'abcd',
+      maxZoom: 20
+    });
+
+    // CartoDB Positron (Clean Light Mode)
+    const lightMode = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+      subdomains: 'abcd',
+      maxZoom: 20
+    });
+
+    // Standard OSM
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    });
+
+    // Default Layer
     googleHybrid.addTo(map);
 
-    // Add Layer Control so you can toggle views
+    // Add Layer Control
     const baseMaps = {
       "Satellite (Hybrid)": googleHybrid,
-      "Street Map": osm
+      "Satellite (Pure)": googleSatellite,
+      "Terrain": googleTerrain,
+      "Light Minimal": lightMode,
+      "Dark Minimal": darkMatter,
+      "Street Map (OSM)": osm
     };
-    L.control.layers(baseMaps).addTo(map);
+    
+    L.control.layers(baseMaps, {}, { position: 'topright' }).addTo(map);
 
     // Initialize Marker Cluster Group
     const clusterGroup = L.markerClusterGroup({
       spiderfyOnMaxZoom: true,
       showCoverageOnHover: false,
       zoomToBoundsOnClick: true,
-      // Increased max cluster radius to make it easier to group when zoomed out
       maxClusterRadius: 40,
     });
+    
     map.addLayer(clusterGroup);
     clusterGroupRef.current = clusterGroup;
-
     mapInstanceRef.current = map;
 
     return () => {
@@ -127,7 +162,6 @@ export function TreeMap({ trees, selectedTreeId, onTreeClick }: TreeMapProps) {
   useEffect(() => {
     if (!mapInstanceRef.current || !clusterGroupRef.current) return;
 
-    // Clear existing markers from the cluster group
     clusterGroupRef.current.clearLayers();
     markersRef.current = {};
 
@@ -153,7 +187,6 @@ export function TreeMap({ trees, selectedTreeId, onTreeClick }: TreeMapProps) {
           </div>
         </div>
       `, {
-        // Auto-close ensures only one popup is open at a time
         autoClose: true,
         closeOnClick: true
       });
@@ -163,11 +196,10 @@ export function TreeMap({ trees, selectedTreeId, onTreeClick }: TreeMapProps) {
       });
 
       clusterGroupRef.current!.addLayer(marker);
-      markersRef.current[tree.id] = marker; // Store by ID for easy selection
+      markersRef.current[tree.id] = marker;
       bounds.extend([tree.latitude, tree.longitude]);
     });
 
-    // Only fit bounds automatically if we aren't currently focusing on a specific tree
     if (trees.length > 0 && !selectedTreeId) {
       mapInstanceRef.current.fitBounds(bounds, { padding: [50, 50] });
     }
@@ -181,13 +213,10 @@ export function TreeMap({ trees, selectedTreeId, onTreeClick }: TreeMapProps) {
     if (selectedTree) {
       const marker = markersRef.current[selectedTreeId];
       if (marker) {
-        // Zoom to the tree and open its popup
-        // Use zoomToLocation if the marker is in a cluster
         clusterGroupRef.current.zoomToShowLayer(marker, () => {
           marker.openPopup();
         });
 
-        // Fallback for direct view if needed (though zoomToShowLayer handles clustering)
         mapInstanceRef.current.setView([selectedTree.latitude, selectedTree.longitude], 20, {
           animate: true,
         });
