@@ -90,12 +90,12 @@ export function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-3 text-center">
         <div className="mx-auto w-16 h-16 bg-green-600 rounded-full flex items-center justify-center overflow-hidden">
-            <img 
-              src="/home/user/ment/public/img/Pototan-logo.png" 
-              alt="Municipality of Pototan Logo" 
-              className="w-12 h-12 object-contain" 
-            />
-          </div>
+  <img 
+    src="/img/Pototan-logo.png" 
+    alt="Municipality of Pototan Logo" 
+    className="w-12 h-12 object-contain" 
+  />
+</div>
           <CardTitle className="text-3xl">MENRO</CardTitle>
           <CardDescription>
             <strong>Municipal Environment and Natural Resources Office</strong>
