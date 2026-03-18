@@ -52,6 +52,12 @@ export function AdminHome() {
         }
       }
     },
+    onError(error) {
+      console.error("Scanner error:", error);
+      if (isScannerOpen) {
+        toast.error("Camera access error. Please ensure permissions are granted.");
+      }
+    },
     paused: !isScannerOpen, // Only run camera when dialog is open
     constraints: { 
       video: { 
@@ -234,6 +240,8 @@ export function AdminHome() {
             {/* The video element that receives the hook ref */}
             <video 
               ref={ref} 
+              playsInline
+              muted
               className="rounded-lg border-2 border-dashed border-gray-300 w-full aspect-video object-cover" 
             />
             <p className="mt-4 text-sm text-gray-500 text-center">
