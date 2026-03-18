@@ -146,10 +146,6 @@ export function AdminProfile() {
                 <span className="text-sm">View Map Interface</span>
                 <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Enabled</Badge>
               </div>
-              <div className="flex items-center justify-between py-2 border-b">
-                <span className="text-sm">Scan NFC Tags</span>
-                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Enabled</Badge>
-              </div>
               <div className="flex items-center justify-between py-2">
                 <span className="text-sm">Export Reports</span>
                 <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Enabled</Badge>
