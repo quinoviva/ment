@@ -166,7 +166,7 @@ export function AdminProfile() {
           <CardContent className="text-xs text-gray-600 space-y-1">
             <div className="flex items-center gap-2">
               <Calendar className="w-3 h-3" />
-              <span>MENRO Tree Management System v1.0</span>
+              <span>MENRO Tree Management System</span>
             </div>
             <div>Municipal Environment and Natural Resources Office</div>
             <div>© 2026 - All rights reserved</div>

@@ -39,7 +39,7 @@ export function LoginPage() {
         role: 'admin_user',
       };
       storage.setCurrentUser(adminUser);
-      toast.success("Welcome, Admin! (Demo Bypass)");
+      toast.success("Welcome, Admin!");
       navigate('/admin');
       setIsLoading(false);
       return;
