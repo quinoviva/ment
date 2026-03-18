@@ -17,32 +17,38 @@ export function AdminHome() {
     loadTrees();
   }, []);
 
-  const loadTrees = () => {
-    const data = storage.getTrees();
-    setTrees(data);
+  const loadTrees = async () => {
+    try {
+      const data = await storage.getTrees();
+      setTrees(data);
+    } catch (error) {
+      console.error("Error loading trees:", error);
+      toast.error("Failed to load trees.");
+    }
   };
 
   // Integration of react-zxing hook
   const { ref } = useZxing({
-    onDecodeResult(result) {
-      handleBarcodeScan(result);
+    async onDecodeResult(result) {
+      if (result) {
+        const treeId = result.getText();
+        try {
+          const tree = await storage.getTreeById(treeId);
+          if (tree) {
+            setScannedTree(tree);
+            toast.success('Barcode scanned successfully!');
+          } else {
+            toast.error('Tree not found for the scanned barcode.');
+          }
+          setIsScannerOpen(false);
+        } catch (error) {
+          console.error("Error fetching tree by ID:", error);
+          toast.error("Error processing scan.");
+        }
+      }
     },
     paused: !isScannerOpen, // Only run camera when dialog is open
   });
-
-  const handleBarcodeScan = (result: any) => {
-    if (result) {
-      const treeId = result.getText();
-      const tree = storage.getTreeById(treeId);
-      if (tree) {
-        setScannedTree(tree);
-        toast.success('Barcode scanned successfully!');
-      } else {
-        toast.error('Tree not found for the scanned barcode.');
-      }
-      setIsScannerOpen(false);
-    }
-  };
 
   const getHealthStatusColor = (status: TreeData['healthStatus']) => {
     switch (status) {

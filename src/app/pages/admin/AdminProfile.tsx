@@ -1,16 +1,30 @@
 import { useState, useEffect } from 'react';
-import { storage } from '../../utils/storage';
+import { storage, TreeData, User as AppUser } from '../../utils/storage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { User, Shield, Calendar, Activity } from 'lucide-react';
 
 export function AdminProfile() {
-  const [user, setUser] = useState(storage.getCurrentUser());
-  const [trees, setTrees] = useState(storage.getTrees());
+  const [user, setUser] = useState<AppUser | null>(storage.getCurrentUser());
+  const [trees, setTrees] = useState<TreeData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    setUser(storage.getCurrentUser());
-    setTrees(storage.getTrees());
+    async function fetchData() {
+      setIsLoading(true);
+      const currentUser = storage.getCurrentUser();
+      setUser(currentUser);
+      
+      try {
+        const fetchedTrees = await storage.getTrees();
+        setTrees(fetchedTrees);
+      } catch (error) {
+        console.error("Error fetching trees:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchData();
   }, []);
 
   const stats = {
@@ -21,6 +35,7 @@ export function AdminProfile() {
   };
 
   if (!user) return null;
+  if (isLoading) return <div className="p-8 text-center">Loading profile...</div>;
 
   return (
     <div className="p-8">

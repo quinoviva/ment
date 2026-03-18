@@ -6,12 +6,14 @@ import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Search, MapPin, TreePine, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
 
 export function AdminMap() {
   const [trees, setTrees] = useState<TreeData[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTreeId, setSelectedTreeId] = useState<string | null>(null);
   const [filteredTrees, setFilteredTrees] = useState<TreeData[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     loadTrees();
@@ -31,10 +33,18 @@ export function AdminMap() {
     }
   }, [searchQuery, trees]);
 
-  const loadTrees = () => {
-    const data = storage.getTrees();
-    setTrees(data);
-    setFilteredTrees(data);
+  const loadTrees = async () => {
+    setIsLoading(true);
+    try {
+      const data = await storage.getTrees();
+      setTrees(data);
+      setFilteredTrees(data);
+    } catch (error) {
+      console.error("Error loading trees:", error);
+      toast.error("Failed to load trees.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleTreeClick = (tree: TreeData) => {
@@ -67,8 +77,8 @@ export function AdminMap() {
               Showing {filteredTrees.length} of {trees.length} trees
             </p>
           </div>
-          <Button onClick={loadTrees} variant="outline" size="sm">
-            <RefreshCw className="w-4 h-4 mr-2" />
+          <Button onClick={loadTrees} variant="outline" size="sm" disabled={isLoading}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
         </div>
@@ -118,7 +128,7 @@ export function AdminMap() {
                   </div>
                 </Card>
               ))}
-              {filteredTrees.length === 0 && (
+              {filteredTrees.length === 0 && !isLoading && (
                 <div className="text-center py-8 text-gray-500">
                   <TreePine className="w-12 h-12 mx-auto mb-2 opacity-30" />
                   <p className="text-sm">No trees found</p>

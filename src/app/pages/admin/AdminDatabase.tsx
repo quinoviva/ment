@@ -28,6 +28,7 @@ export function AdminDatabase() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [treeToDelete, setTreeToDelete] = useState<TreeData | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -58,10 +59,18 @@ export function AdminDatabase() {
     }
   }, [searchQuery, trees]);
 
-  const loadTrees = () => {
-    const data = storage.getTrees();
-    setTrees(data);
-    setFilteredTrees(data);
+  const loadTrees = async () => {
+    setIsLoading(true);
+    try {
+      const data = await storage.getTrees();
+      setTrees(data);
+      setFilteredTrees(data);
+    } catch (error) {
+      console.error("Error loading trees:", error);
+      toast.error("Failed to load trees.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleEdit = (tree: TreeData) => {
@@ -87,17 +96,23 @@ export function AdminDatabase() {
     setIsDeleteDialogOpen(true);
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (treeToDelete) {
-      storage.deleteTree(treeToDelete.id);
-      loadTrees();
-      toast.success('Tree deleted successfully');
-      setIsDeleteDialogOpen(false);
-      setTreeToDelete(null);
+      try {
+        await storage.deleteTree(treeToDelete.id);
+        toast.success('Tree deleted successfully');
+        loadTrees();
+      } catch (error) {
+        console.error("Error deleting tree:", error);
+        toast.error("Failed to delete tree.");
+      } finally {
+        setIsDeleteDialogOpen(false);
+        setTreeToDelete(null);
+      }
     }
   };
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     if (!editingTree) return;
 
     const updatedTree: Partial<TreeData> = {
@@ -109,11 +124,17 @@ export function AdminDatabase() {
       longitude: parseFloat(formData.longitude),
     };
 
-    storage.updateTree(editingTree.id, updatedTree);
-    loadTrees();
-    toast.success('Tree updated successfully');
-    setIsEditDialogOpen(false);
-    setEditingTree(null);
+    try {
+      await storage.updateTree(editingTree.id, updatedTree);
+      toast.success('Tree updated successfully');
+      loadTrees();
+    } catch (error) {
+      console.error("Error updating tree:", error);
+      toast.error("Failed to update tree.");
+    } finally {
+      setIsEditDialogOpen(false);
+      setEditingTree(null);
+    }
   };
 
   const getHealthStatusColor = (status: TreeData['healthStatus']) => {
@@ -135,8 +156,8 @@ export function AdminDatabase() {
             <h1 className="text-3xl mb-2">Tree Database</h1>
             <p className="text-gray-600">Manage all tree records</p>
           </div>
-          <Button onClick={loadTrees} variant="outline">
-            <RefreshCw className="w-4 h-4 mr-2" />
+          <Button onClick={loadTrees} variant="outline" disabled={isLoading}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
         </div>
@@ -227,9 +248,14 @@ export function AdminDatabase() {
                 ))}
               </TableBody>
             </Table>
-            {filteredTrees.length === 0 && (
+            {filteredTrees.length === 0 && !isLoading && (
               <div className="text-center py-12 text-gray-500">
                 <p>No trees found</p>
+              </div>
+            )}
+            {isLoading && (
+              <div className="text-center py-12 text-gray-500">
+                <p>Loading trees...</p>
               </div>
             )}
           </div>

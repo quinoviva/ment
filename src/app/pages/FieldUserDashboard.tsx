@@ -7,7 +7,7 @@ import { Label } from '../components/ui/label';
 import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { storage, TreeData } from '../utils/storage';
+import { storage, TreeData, User as AppUser } from '../utils/storage';
 import { toast } from 'sonner';
 import { MapPin, TreePine, LogOut, Wifi, WifiOff, Barcode as BarcodeIcon, X, Printer, Download } from 'lucide-react';
 
@@ -31,7 +31,7 @@ const TREE_SPECIES = [
 
 export function FieldUserDashboard() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(storage.getCurrentUser());
+  const [user, setUser] = useState<AppUser | null>(storage.getCurrentUser());
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   // Form state
@@ -43,13 +43,16 @@ export function FieldUserDashboard() {
   const [longitude, setLongitude] = useState<number | null>(null);
   const [isCapturingLocation, setIsCapturingLocation] = useState(false);
   const [generatedTreeId, setGeneratedTreeId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const barcodeRef = useRef<HTMLCanvasElement>(null); // Ref to capture the barcode canvas
 
   useEffect(() => {
-    if (!user || user.role !== 'field_user') {
+    const currentUser = storage.getCurrentUser();
+    if (!currentUser || currentUser.role !== 'field_user') {
       navigate('/');
       return;
     }
+    setUser(currentUser);
 
     // Monitor online/offline status
     const handleOnline = () => setIsOnline(true);
@@ -62,7 +65,7 @@ export function FieldUserDashboard() {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [user, navigate]);
+  }, [navigate]);
 
   const captureLocation = () => {
     if (!navigator.geolocation) {
@@ -99,22 +102,30 @@ export function FieldUserDashboard() {
       return;
     }
 
-    const treeData: TreeData = {
-      id: `tree_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      name: treeName,
-      species,
-      healthStatus,
-      age: parseInt(age),
-      latitude,
-      longitude,
-      dateAdded: new Date().toISOString(),
-      addedBy: user?.username || 'field_user',
-    };
+    setIsSubmitting(true);
+    try {
+      const treeData: TreeData = {
+        id: `tree_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        name: treeName,
+        species,
+        healthStatus,
+        age: parseInt(age),
+        latitude,
+        longitude,
+        dateAdded: new Date().toISOString(),
+        addedBy: user?.username || 'field_user',
+      };
 
-    // Save to local storage
-    storage.addTree(treeData);
-    setGeneratedTreeId(treeData.id);
-    toast.success('Tree data saved & barcode generated!');
+      // Save to Firestore
+      await storage.addTree(treeData);
+      setGeneratedTreeId(treeData.id);
+      toast.success('Tree data saved & barcode generated!');
+    } catch (error) {
+      console.error("Error adding tree:", error);
+      toast.error("Failed to save tree data.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handlePrint = () => {
@@ -183,8 +194,8 @@ export function FieldUserDashboard() {
     setGeneratedTreeId(null);
   };
 
-  const handleLogout = () => {
-    storage.logout();
+  const handleLogout = async () => {
+    await storage.logout();
     navigate('/');
     toast.success('Logged out successfully');
   };
@@ -363,9 +374,9 @@ export function FieldUserDashboard() {
 
                 {/* Submit Button */}
                 <div className="pt-4">
-                  <Button type="submit" className="w-full" size="lg">
+                  <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
                     <BarcodeIcon className="w-5 h-5 mr-2" />
-                    Save & Generate Barcode
+                    {isSubmitting ? 'Saving...' : 'Save & Generate Barcode'}
                   </Button>
                 </div>
               </form>

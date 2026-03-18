@@ -108,6 +108,29 @@ export const storage = {
     return undefined; // Return undefined if user not found or role is invalid
   },
 
+  // Function to fetch user profile by UID from Firestore
+  async fetchUserByUid(uid: string): Promise<User | undefined> {
+    try {
+      const usersCollectionRef = collection(db, 'users');
+      const q = query(usersCollectionRef, where("uid", "==", uid));
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        const userDoc = querySnapshot.docs[0];
+        const userData = userDoc.data();
+        if (userData && userData.username && userData.role) {
+          return {
+            username: userData.username,
+            role: userData.role as User['role']
+          };
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching user by UID:", error);
+    }
+    return undefined;
+  },
+
   // Function to get all users (for admin interface)
   async getAllUsers(): Promise<User[]> {
     const usersCollectionRef = collection(db, 'users');
