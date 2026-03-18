@@ -98,7 +98,7 @@ export function LoginPage() {
 </div>
           <CardTitle className="text-3xl">MENRO</CardTitle>
           <CardDescription>
-            <strong>Municipal Environment and Natural Resources Office</strong>
+            Municipal Environment and Natural Resources Office
             <br />
             Tree Management System
           </CardDescription>
