@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { storage, TreeData } from '../../utils/storage';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -10,7 +10,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Badge } from '../../components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { toast } from 'sonner';
-import { Pencil, Trash2, MapPin, RefreshCw, Eye, Search } from 'lucide-react';
+import { Pencil, Trash2, MapPin, RefreshCw, Eye, Search, Download, Printer, Barcode as BarcodeIcon } from 'lucide-react';
+import Barcode from 'react-barcode';
+import { useZxing } from "react-zxing";
 
 const TREE_SPECIES = [
   'Narra', 'Mahogany', 'Acacia', 'Mango', 'Ipil-ipil',
@@ -24,11 +26,13 @@ export function AdminDatabase() {
   const [searchQuery, setSearchQuery] = useState('');
   const [editingTree, setEditingTree] = useState<TreeData | null>(null);
   const [viewingTree, setViewingTree] = useState<TreeData | null>(null);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [treeToDelete, setTreeToDelete] = useState<TreeData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const barcodeRef = useRef<HTMLDivElement>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -51,6 +55,7 @@ export function AdminDatabase() {
       const query = searchQuery.toLowerCase();
       const filtered = trees.filter(tree =>
         tree.name.toLowerCase().includes(query) ||
+        tree.id.toLowerCase().includes(query) ||
         tree.species.toLowerCase().includes(query) ||
         tree.healthStatus.toLowerCase().includes(query) ||
         tree.addedBy.toLowerCase().includes(query)
@@ -58,6 +63,26 @@ export function AdminDatabase() {
       setFilteredTrees(filtered);
     }
   }, [searchQuery, trees]);
+
+  // Barcode Scanner Hook
+  const { ref: scannerRef } = useZxing({
+    onDecodeResult(result) {
+      if (result) {
+        if ('vibrate' in navigator) navigator.vibrate(200);
+        setSearchQuery(result.getText());
+        setIsScannerOpen(false);
+        toast.success("Barcode scanned and searched!");
+      }
+    },
+    onError(error) {
+      console.error("Scanner error:", error);
+      if (isScannerOpen) {
+        toast.error("Camera access error. Please ensure HTTPS or localhost is used.");
+      }
+    },
+    paused: !isScannerOpen,
+    constraints: { video: { facingMode: "environment" } }
+  });
 
   const loadTrees = async () => {
     setIsLoading(true);
@@ -137,6 +162,65 @@ export function AdminDatabase() {
     }
   };
 
+  const handleDownloadBarcode = () => {
+    if (!barcodeRef.current || !viewingTree) return;
+    
+    const svg = barcodeRef.current.querySelector('svg');
+    if (!svg) return;
+
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    const img = new Image();
+    
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      if (ctx) {
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+      }
+      const pngFile = canvas.toDataURL("image/png");
+      const downloadLink = document.createElement("a");
+      downloadLink.download = `barcode-${viewingTree.id}.png`;
+      downloadLink.href = pngFile;
+      downloadLink.click();
+      toast.success('Barcode downloaded successfully');
+    };
+    
+    img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
+  };
+
+  const handlePrintBarcode = () => {
+    if (!barcodeRef.current || !viewingTree) return;
+    
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Print Barcode - ${viewingTree.name}</title>
+            <style>
+              body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; flex-direction: column; font-family: sans-serif; }
+              .label { margin-top: 10px; font-weight: bold; }
+            </style>
+          </head>
+          <body>
+            ${barcodeRef.current.innerHTML}
+            <div class="label">${viewingTree.name} (${viewingTree.id})</div>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 500);
+    }
+  };
+
   const getHealthStatusColor = (status: TreeData['healthStatus']) => {
     switch (status) {
       case 'Excellent': return 'bg-green-500';
@@ -153,8 +237,8 @@ export function AdminDatabase() {
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-3xl mb-2">Tree Database</h1>
-            <p className="text-gray-600">Manage all tree records</p>
+            <h1 className="text-3xl mb-2 text-green-800 font-bold">Tree Database</h1>
+            <p className="text-gray-600">Manage all registered tree records</p>
           </div>
           <Button onClick={loadTrees} variant="outline" disabled={isLoading}>
             <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
@@ -162,30 +246,41 @@ export function AdminDatabase() {
           </Button>
         </div>
 
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-          <Input
-            type="text"
-            placeholder="Search by name, species, health status, or added by..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
+        {/* Search & Scan */}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+            <Input
+              type="text"
+              placeholder="Search by ID, name, species, health, or user..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <Button 
+            variant="secondary" 
+            onClick={() => setIsScannerOpen(true)}
+            className="bg-green-100 text-green-700 hover:bg-green-200 border-green-200"
+          >
+            <BarcodeIcon className="w-4 h-4 mr-2" />
+            Scan to Search
+          </Button>
         </div>
       </div>
 
       {/* Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>All Trees ({filteredTrees.length})</CardTitle>
-          <CardDescription>Complete list of registered trees</CardDescription>
+      <Card className="border-green-100">
+        <CardHeader className="bg-green-50/50">
+          <CardTitle className="text-lg">All Trees ({filteredTrees.length})</CardTitle>
+          <CardDescription>Comprehensive list of tree inventory</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Barcode</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Species</TableHead>
                   <TableHead>Health Status</TableHead>
@@ -198,47 +293,61 @@ export function AdminDatabase() {
               </TableHeader>
               <TableBody>
                 {filteredTrees.map((tree) => (
-                  <TableRow key={tree.id}>
-                    <TableCell className="font-medium">{tree.name}</TableCell>
+                  <TableRow key={tree.id} className="hover:bg-green-50/30">
+                    <TableCell>
+                      <div className="scale-75 origin-left -my-2 opacity-80 hover:opacity-100 transition-opacity">
+                        <Barcode 
+                          value={tree.id} 
+                          width={1} 
+                          height={30} 
+                          fontSize={10}
+                          displayValue={false}
+                        />
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-semibold text-green-900">{tree.name}</TableCell>
                     <TableCell>{tree.species}</TableCell>
                     <TableCell>
-                      <Badge className={getHealthStatusColor(tree.healthStatus)}>
+                      <Badge className={`${getHealthStatusColor(tree.healthStatus)} border-none text-white`}>
                         {tree.healthStatus}
                       </Badge>
                     </TableCell>
                     <TableCell>{tree.age}</TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-1 text-sm">
-                        <MapPin className="w-3 h-3" />
-                        <span className="truncate max-w-[120px]">
+                      <div className="flex items-center gap-1 text-xs text-gray-500">
+                        <MapPin className="w-3 h-3 text-green-600" />
+                        <span className="truncate max-w-[100px]">
                           {tree.latitude.toFixed(4)}, {tree.longitude.toFixed(4)}
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell>{tree.addedBy}</TableCell>
-                    <TableCell className="text-sm">
+                    <TableCell className="text-sm italic text-gray-600">{tree.addedBy}</TableCell>
+                    <TableCell className="text-xs text-gray-500">
                       {new Date(tree.dateAdded).toLocaleDateString()}
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
+                      <div className="flex justify-end gap-1">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleView(tree)}
+                          title="View Details"
                         >
-                          <Eye className="w-4 h-4" />
+                          <Eye className="w-4 h-4 text-gray-600" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleEdit(tree)}
+                          title="Edit Tree"
                         >
-                          <Pencil className="w-4 h-4" />
+                          <Pencil className="w-4 h-4 text-blue-600" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleDeleteClick(tree)}
+                          title="Delete Tree"
                         >
                           <Trash2 className="w-4 h-4 text-red-500" />
                         </Button>
@@ -249,96 +358,155 @@ export function AdminDatabase() {
               </TableBody>
             </Table>
             {filteredTrees.length === 0 && !isLoading && (
-              <div className="text-center py-12 text-gray-500">
-                <p>No trees found</p>
+              <div className="text-center py-20 text-gray-400">
+                <BarcodeIcon className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                <p>No tree records match your criteria</p>
               </div>
             )}
             {isLoading && (
-              <div className="text-center py-12 text-gray-500">
-                <p>Loading trees...</p>
+              <div className="text-center py-20 text-green-600">
+                <RefreshCw className="w-10 h-10 mx-auto mb-4 animate-spin opacity-50" />
+                <p>Retrieving tree database...</p>
               </div>
             )}
           </div>
         </CardContent>
       </Card>
 
-      {/* View Dialog */}
-      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-md">
+      {/* Scanner Dialog */}
+      <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Tree Details</DialogTitle>
+            <DialogTitle>Scan Tree Barcode</DialogTitle>
+            <DialogDescription>Point your camera at a tree barcode to find it in the database</DialogDescription>
           </DialogHeader>
-          {viewingTree && (
-            <div className="space-y-4">
-              <div>
-                <Label className="text-gray-600">Tree Name</Label>
-                <p className="font-medium">{viewingTree.name}</p>
-              </div>
-              <div>
-                <Label className="text-gray-600">Species</Label>
-                <p className="font-medium">{viewingTree.species}</p>
-              </div>
-              <div>
-                <Label className="text-gray-600">Health Status</Label>
-                <div className="mt-1">
-                  <Badge className={getHealthStatusColor(viewingTree.healthStatus)}>
-                    {viewingTree.healthStatus}
-                  </Badge>
-                </div>
-              </div>
-              <div>
-                <Label className="text-gray-600">Age</Label>
-                <p className="font-medium">{viewingTree.age} years</p>
-              </div>
-              <div>
-                <Label className="text-gray-600">Location</Label>
-                <div className="flex items-center gap-2 mt-1">
-                  <MapPin className="w-4 h-4 text-gray-500" />
-                  <p className="text-sm">
-                    {viewingTree.latitude.toFixed(6)}, {viewingTree.longitude.toFixed(6)}
-                  </p>
-                </div>
-              </div>
-              <div>
-                <Label className="text-gray-600">Added By</Label>
-                <p className="font-medium">{viewingTree.addedBy}</p>
-              </div>
-              <div>
-                <Label className="text-gray-600">Date Added</Label>
-                <p className="text-sm">{new Date(viewingTree.dateAdded).toLocaleString()}</p>
-              </div>
-              <div>
-                <Label className="text-gray-600">Tree ID</Label>
-                <p className="text-xs text-gray-500 font-mono">{viewingTree.id}</p>
-              </div>
-            </div>
-          )}
+          <div className="flex flex-col items-center justify-center p-4">
+            <video 
+              ref={scannerRef} 
+              autoPlay
+              playsInline
+              muted
+              className="rounded-lg border-2 border-dashed border-green-300 w-full aspect-video object-cover" 
+            />
+            <p className="mt-4 text-sm text-gray-500 text-center">
+              Align the barcode within the frame.
+            </p>
+          </div>
           <DialogFooter>
-            <Button onClick={() => setIsViewDialogOpen(false)}>Close</Button>
+            <Button variant="outline" onClick={() => setIsScannerOpen(false)} className="w-full">
+              Cancel Scan
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* View Dialog */}
+      {/* View Dialog */}
+<Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+  {/* Changed max-w-md to sm:max-w-2xl for better horizontal fit */}
+  <DialogContent className="sm:max-w-4xl">
+    <DialogHeader>
+      <DialogTitle className="text-xl text-green-800">Tree Record Details</DialogTitle>
+    </DialogHeader>
+    {viewingTree && (
+      <div className="space-y-6">
+        {/* Barcode Display Section */}
+        <div className="flex flex-col items-center justify-center p-6 bg-green-50/50 rounded-xl border border-dashed border-green-200">
+          <div ref={barcodeRef} className="bg-white p-4 rounded-lg shadow-sm">
+            <Barcode 
+              value={viewingTree.id} 
+              width={2}  /* Adjusted from 1.8 to 2 for the wider dialog */
+              height={70} 
+              fontSize={14}
+            />
+          </div>
+          <div className="flex gap-2 mt-5">
+            <Button variant="outline" size="sm" onClick={handleDownloadBarcode} className="h-9 border-green-200 text-green-700 hover:bg-green-100">
+              <Download className="w-4 h-4 mr-2" />
+              Download PNG
+            </Button>
+            <Button variant="outline" size="sm" onClick={handlePrintBarcode} className="h-9 border-green-200 text-green-700 hover:bg-green-100">
+              <Printer className="w-4 h-4 mr-2" />
+              Print Label
+            </Button>
+          </div>
+        </div>
+
+        {/* Keeping your original grid structure exactly as provided */}
+        <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+          <div className="space-y-1">
+            <Label className="text-gray-400 text-[10px] uppercase tracking-wider font-bold">Tree Name</Label>
+            <p className="font-semibold text-green-900">{viewingTree.name}</p>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-gray-400 text-[10px] uppercase tracking-wider font-bold">Species</Label>
+            <p className="font-semibold text-green-900">{viewingTree.species}</p>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-gray-400 text-[10px] uppercase tracking-wider font-bold">Condition</Label>
+            <div className="mt-0.5">
+              <Badge className={`${getHealthStatusColor(viewingTree.healthStatus)} border-none text-white text-[10px] px-2 h-5`}>
+                {viewingTree.healthStatus}
+              </Badge>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-gray-400 text-[10px] uppercase tracking-wider font-bold">Estimated Age</Label>
+            <p className="font-semibold text-green-900">{viewingTree.age} years</p>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-gray-400 text-[10px] uppercase tracking-wider font-bold">Coordinates</Label>
+            <div className="flex items-center gap-1 mt-0.5">
+              <MapPin className="w-3 h-3 text-green-600" />
+              <p className="text-xs font-mono text-gray-600">
+                {viewingTree.latitude.toFixed(6)}, {viewingTree.longitude.toFixed(6)}
+              </p>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-gray-400 text-[10px] uppercase tracking-wider font-bold">Registered By</Label>
+            <p className="font-semibold text-green-900">{viewingTree.addedBy}</p>
+          </div>
+          <div className="col-span-2 space-y-1">
+            <Label className="text-gray-400 text-[10px] uppercase tracking-wider font-bold">Registration Timestamp</Label>
+            <p className="text-xs text-gray-600">{new Date(viewingTree.dateAdded).toLocaleString()}</p>
+          </div>
+          <div className="col-span-2 space-y-1">
+            <Label className="text-gray-400 text-[10px] uppercase tracking-wider font-bold">System Tracking ID</Label>
+            <p className="text-[10px] text-gray-500 font-mono break-all bg-gray-100 p-2 rounded border border-gray-200">
+              {viewingTree.id}
+            </p>
+          </div>
+        </div>
+      </div>
+    )}
+    <DialogFooter className="mt-8">
+      <Button onClick={() => setIsViewDialogOpen(false)} className="w-full bg-green-700 hover:bg-green-800">Close Record</Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit Tree</DialogTitle>
-            <DialogDescription>Update tree information</DialogDescription>
+            <DialogTitle>Edit Tree Record</DialogTitle>
+            <DialogDescription>Modify existing tree data in the central database</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 py-4">
             <div>
-              <Label htmlFor="edit-name">Tree Name</Label>
+              <Label htmlFor="edit-name">Tree Name / Identifier</Label>
               <Input
                 id="edit-name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="focus-visible:ring-green-500"
               />
             </div>
             <div>
               <Label htmlFor="edit-species">Species</Label>
               <Select value={formData.species} onValueChange={(value) => setFormData({ ...formData, species: value })}>
-                <SelectTrigger id="edit-species">
+                <SelectTrigger id="edit-species" className="focus:ring-green-500">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -349,54 +517,60 @@ export function AdminDatabase() {
               </Select>
             </div>
             <div>
-              <Label>Health Status</Label>
+              <Label className="mb-2 block">Health Status Condition</Label>
               <RadioGroup
                 value={formData.healthStatus}
                 onValueChange={(value) => setFormData({ ...formData, healthStatus: value as TreeData['healthStatus'] })}
+                className="grid grid-cols-2 gap-2"
               >
                 {(['Excellent', 'Good', 'Fair', 'Poor', 'Dead'] as const).map((status) => (
-                  <div key={status} className="flex items-center space-x-2">
-                    <RadioGroupItem value={status} id={`edit-${status}`} />
-                    <Label htmlFor={`edit-${status}`} className="cursor-pointer">{status}</Label>
+                  <div key={status} className="flex items-center space-x-2 bg-gray-50 p-2 rounded-md border border-gray-100">
+                    <RadioGroupItem value={status} id={`edit-${status}`} className="text-green-600 border-green-200" />
+                    <Label htmlFor={`edit-${status}`} className="cursor-pointer text-sm">{status}</Label>
                   </div>
                 ))}
               </RadioGroup>
             </div>
-            <div>
-              <Label htmlFor="edit-age">Age (Years)</Label>
-              <Input
-                id="edit-age"
-                type="number"
-                value={formData.age}
-                onChange={(e) => setFormData({ ...formData, age: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-latitude">Latitude</Label>
-              <Input
-                id="edit-latitude"
-                type="number"
-                step="any"
-                value={formData.latitude}
-                onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-longitude">Longitude</Label>
-              <Input
-                id="edit-longitude"
-                type="number"
-                step="any"
-                value={formData.longitude}
-                onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
-              />
+            <div className="grid grid-cols-3 gap-4">
+              <div className="col-span-1">
+                <Label htmlFor="edit-age">Age (Yrs)</Label>
+                <Input
+                  id="edit-age"
+                  type="number"
+                  value={formData.age}
+                  onChange={(e) => setFormData({ ...formData, age: e.target.value })}
+                  className="focus-visible:ring-green-500"
+                />
+              </div>
+              <div className="col-span-1">
+                <Label htmlFor="edit-latitude">Lat</Label>
+                <Input
+                  id="edit-latitude"
+                  type="number"
+                  step="any"
+                  value={formData.latitude}
+                  onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
+                  className="focus-visible:ring-green-500"
+                />
+              </div>
+              <div className="col-span-1">
+                <Label htmlFor="edit-longitude">Long</Label>
+                <Input
+                  id="edit-longitude"
+                  type="number"
+                  step="any"
+                  value={formData.longitude}
+                  onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
+                  className="focus-visible:ring-green-500"
+                />
+              </div>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-              Cancel
+              Discard Changes
             </Button>
-            <Button onClick={handleUpdate}>Update</Button>
+            <Button onClick={handleUpdate} className="bg-green-700 hover:bg-green-800">Save Updates</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -405,23 +579,23 @@ export function AdminDatabase() {
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Delete Tree</DialogTitle>
+            <DialogTitle className="text-red-700">Permanent Record Deletion</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this tree? This action cannot be undone.
+              Warning: This action will permanently remove this tree record from the global database.
             </DialogDescription>
           </DialogHeader>
           {treeToDelete && (
-            <div className="p-4 bg-red-50 rounded-md">
-              <p className="font-medium">{treeToDelete.name}</p>
-              <p className="text-sm text-gray-600">{treeToDelete.species}</p>
+            <div className="p-4 bg-red-50 rounded-lg border border-red-100 my-2">
+              <p className="font-bold text-red-900">{treeToDelete.name}</p>
+              <p className="text-xs text-red-700 mt-1">Species: {treeToDelete.species} | Tracking ID: {treeToDelete.id}</p>
             </div>
           )}
-          <DialogFooter>
+          <DialogFooter className="mt-4">
             <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDeleteConfirm}>
-              Delete
+            <Button variant="destructive" onClick={handleDeleteConfirm} className="bg-red-600 hover:bg-red-700">
+              Confirm Deletion
             </Button>
           </DialogFooter>
         </DialogContent>
