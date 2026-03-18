@@ -27,10 +27,15 @@ export function AdminHome() {
     }
   };
 
-  // Integration of react-zxing hook
+  // Integration of react-zxing hook with enhanced configuration
   const { ref } = useZxing({
     async onDecodeResult(result) {
       if (result) {
+        // Provide haptic feedback if supported
+        if ('vibrate' in navigator) {
+          navigator.vibrate(200);
+        }
+        
         const treeId = result.getText();
         try {
           const tree = await storage.getTreeById(treeId);
@@ -48,6 +53,11 @@ export function AdminHome() {
       }
     },
     paused: !isScannerOpen, // Only run camera when dialog is open
+    constraints: { 
+      video: { 
+        facingMode: "environment" // Prefer the rear camera on mobile devices
+      } 
+    }
   });
 
   const getHealthStatusColor = (status: TreeData['healthStatus']) => {
