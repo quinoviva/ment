@@ -224,6 +224,28 @@ export function AdminDatabase() {
     img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
   };
 
+  const handleDownloadQRCode = () => {
+    if (!viewingTree) return;
+    const publicUrl = `${window.location.origin}/view/${viewingTree.id}`;
+    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(publicUrl)}`;
+    
+    // Create a temporary link to download the image from the API
+    fetch(qrCodeUrl)
+      .then(response => response.blob())
+      .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `qrcode-${viewingTree.id}.png`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        toast.success('QR Code downloaded successfully');
+      })
+      .catch(() => toast.error('Failed to download QR Code'));
+  };
+
   const handlePrintBarcode = () => {
     if (!barcodeRef.current || !viewingTree) return;
     
@@ -250,6 +272,41 @@ export function AdminDatabase() {
         printWindow.print();
         printWindow.close();
       }, 500);
+    }
+  };
+
+  const handlePrintQRCode = () => {
+    if (!viewingTree) return;
+    const publicUrl = `${window.location.origin}/view/${viewingTree.id}`;
+    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(publicUrl)}`;
+    
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Print QR Code - ${viewingTree.name}</title>
+            <style>
+              body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; flex-direction: column; font-family: sans-serif; text-align: center; }
+              .label { margin-top: 15px; font-weight: bold; font-size: 20px; }
+              .species { color: #666; font-size: 14px; margin-top: 5px; }
+              .hint { margin-top: 20px; font-size: 12px; color: #888; border-top: 1px solid #eee; pt-10px; }
+            </style>
+          </head>
+          <body>
+            <img src="${qrCodeUrl}" width="250" height="250" />
+            <div class="label">${viewingTree.name}</div>
+            <div class="species">${viewingTree.species}</div>
+            <div class="hint">Scan to view tree details online</div>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 800);
     }
   };
 
@@ -409,8 +466,8 @@ export function AdminDatabase() {
       <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Scan Tree Barcode</DialogTitle>
-            <DialogDescription>Point your camera at a tree barcode to find it in the database</DialogDescription>
+            <DialogTitle>Scan Barcode or QR Code</DialogTitle>
+            <DialogDescription>Point your camera at a tree barcode or QR code to find it in the database</DialogDescription>
           </DialogHeader>
           <div className="flex flex-col items-center justify-center p-4">
             <video 
@@ -421,7 +478,7 @@ export function AdminDatabase() {
               className="rounded-lg border-2 border-dashed border-green-300 w-full aspect-video object-cover" 
             />
             <p className="mt-4 text-sm text-gray-500 text-center">
-              Align the barcode within the frame.
+              Align the code within the frame for automatic detection.
             </p>
           </div>
           <DialogFooter>
@@ -436,35 +493,61 @@ export function AdminDatabase() {
       {/* View Dialog */}
 <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
   {/* Changed max-w-md to sm:max-w-2xl for better horizontal fit */}
-  <DialogContent className="sm:max-w-4xl">
+  <DialogContent className="sm:max-w-6xl">
     <DialogHeader>
       <DialogTitle className="text-xl text-green-800">Tree Record Details</DialogTitle>
     </DialogHeader>
     {viewingTree && (
       <div className="space-y-6">
-        {/* Barcode Display Section */}
-        <div className="flex flex-col items-center justify-center p-6 bg-green-50/50 rounded-xl border border-dashed border-green-200">
-          <div ref={barcodeRef} className="bg-white p-4 rounded-lg shadow-sm">
-            <Barcode 
-              value={viewingTree.id} 
-              width={2}  /* Adjusted from 1.8 to 2 for the wider dialog */
-              height={70} 
-              fontSize={14}
-            />
+        {/* Barcode and QR Code Section */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Barcode Display */}
+          <div className="flex flex-col items-center justify-center p-6 bg-green-50/50 rounded-xl border border-dashed border-green-200">
+            <p className="text-[10px] font-bold text-green-700 uppercase mb-3">Inventory Barcode</p>
+            <div ref={barcodeRef} className="bg-white p-4 rounded-lg shadow-sm">
+              <Barcode 
+                value={viewingTree.id} 
+                width={1.5} 
+                height={60} 
+                fontSize={12}
+              />
+            </div>
+            <div className="flex gap-2 mt-4">
+              <Button variant="outline" size="sm" onClick={handleDownloadBarcode} className="h-8 text-[10px] border-green-200 text-green-700 hover:bg-green-100">
+                <Download className="w-3 h-3 mr-1" />
+                Download
+              </Button>
+              <Button variant="outline" size="sm" onClick={handlePrintBarcode} className="h-8 text-[10px] border-green-200 text-green-700 hover:bg-green-100">
+                <Printer className="w-3 h-3 mr-1" />
+                Print
+              </Button>
+            </div>
           </div>
-          <div className="flex gap-2 mt-5">
-            <Button variant="outline" size="sm" onClick={handleDownloadBarcode} className="h-9 border-green-200 text-green-700 hover:bg-green-100">
-              <Download className="w-4 h-4 mr-2" />
-              Download PNG
-            </Button>
-            <Button variant="outline" size="sm" onClick={handlePrintBarcode} className="h-9 border-green-200 text-green-700 hover:bg-green-100">
-              <Printer className="w-4 h-4 mr-2" />
-              Print Label
-            </Button>
+
+          {/* QR Code Display */}
+          <div className="flex flex-col items-center justify-center p-6 bg-blue-50/50 rounded-xl border border-dashed border-blue-200">
+            <p className="text-[10px] font-bold text-blue-700 uppercase mb-3">Public View QR Code</p>
+            <div className="bg-white p-3 rounded-lg shadow-sm">
+              <img 
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`${window.location.origin}/view/${viewingTree.id}`)}`} 
+                alt="QR Code"
+                className="w-[120px] h-[120px]"
+              />
+            </div>
+            <div className="flex gap-2 mt-4">
+              <Button variant="outline" size="sm" onClick={handleDownloadQRCode} className="h-8 text-[10px] border-blue-200 text-blue-700 hover:bg-blue-100">
+                <Download className="w-3 h-3 mr-1" />
+                Download
+              </Button>
+              <Button variant="outline" size="sm" onClick={handlePrintQRCode} className="h-8 text-[10px] border-blue-200 text-blue-700 hover:bg-blue-100">
+                <Printer className="w-3 h-3 mr-1" />
+                Print
+              </Button>
+            </div>
           </div>
         </div>
 
-        {/* Keeping your original grid structure exactly as provided */}
+        {/* Tree Information Grid */}
         <div className="grid grid-cols-2 gap-x-6 gap-y-4">
           <div className="space-y-1">
             <Label className="text-gray-400 text-[10px] uppercase tracking-wider font-bold">Tree Name</Label>

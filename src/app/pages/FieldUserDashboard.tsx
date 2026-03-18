@@ -119,7 +119,7 @@ export function FieldUserDashboard() {
       // Save to Firestore
       await storage.addTree(treeData);
       setGeneratedTreeId(treeData.id);
-      toast.success('Tree data saved & barcode generated!');
+      toast.success('Tree data saved & identification generated!');
     } catch (error) {
       console.error("Error adding tree:", error);
       toast.error("Failed to save tree data.");
@@ -128,14 +128,14 @@ export function FieldUserDashboard() {
     }
   };
 
-  const handlePrint = () => {
+  const handlePrintBarcode = () => {
     if (!barcodeRef.current || !generatedTreeId) {
       toast.error('Barcode not ready for printing.');
       return;
     }
 
     const canvas = barcodeRef.current;
-    const imageUrl = canvas.toDataURL('image/png'); // Get image data URL
+    const imageUrl = canvas.toDataURL('image/png');
 
     const printWindow = window.open('', '_blank');
     if (printWindow) {
@@ -155,17 +155,47 @@ export function FieldUserDashboard() {
       `);
       printWindow.document.close();
       printWindow.focus();
-      // Use setTimeout to ensure content is loaded before printing
       setTimeout(() => {
         printWindow.print();
         printWindow.close();
       }, 500);
-    } else {
-      toast.error('Could not open print window. Please allow pop-ups.');
     }
   };
 
-  const handleSave = () => {
+  const handlePrintQRCode = () => {
+    if (!generatedTreeId) return;
+    const publicUrl = `${window.location.origin}/view/${generatedTreeId}`;
+    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(publicUrl)}`;
+    
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Print QR Code</title>
+            <style>
+              body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; flex-direction: column; font-family: sans-serif; text-align: center; }
+              img { width: 250px; height: 250px; }
+              .label { margin-top: 15px; font-weight: bold; font-size: 18px; }
+            </style>
+          </head>
+          <body>
+            <img src="${qrCodeUrl}" />
+            <div class="label">${treeName}</div>
+            <div style="font-size: 12px; color: #666; margin-top: 10px;">Scan to view tree information</div>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 800);
+    }
+  };
+
+  const handleSaveBarcode = () => {
     if (!barcodeRef.current || !generatedTreeId) {
       toast.error('Barcode not ready for saving.');
       return;
@@ -176,11 +206,32 @@ export function FieldUserDashboard() {
 
     const link = document.createElement('a');
     link.href = imageUrl;
-    link.download = `${generatedTreeId}.png`; // Filename for the downloaded image
+    link.download = `barcode-${generatedTreeId}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success('Barcode saved as PNG');
+    toast.success('Barcode saved');
+  };
+
+  const handleSaveQRCode = () => {
+    if (!generatedTreeId) return;
+    const publicUrl = `${window.location.origin}/view/${generatedTreeId}`;
+    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(publicUrl)}`;
+    
+    fetch(qrCodeUrl)
+      .then(res => res.blob())
+      .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `qrcode-${generatedTreeId}.png`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        toast.success('QR Code saved');
+      })
+      .catch(() => toast.error('Failed to save QR Code'));
   };
 
 
@@ -233,38 +284,67 @@ export function FieldUserDashboard() {
         </div>
 
         {generatedTreeId ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>Barcode Generated</CardTitle>
-              <CardDescription>
-                Scan this barcode to retrieve tree information later. You can also print or save it.
+          <Card className="overflow-hidden border-none shadow-xl">
+            <CardHeader className="bg-green-600 text-white pb-8">
+              <CardTitle className="text-2xl">Registration Successful!</CardTitle>
+              <CardDescription className="text-green-100">
+                Identification tags have been generated for {treeName}.
               </CardDescription>
             </CardHeader>
-            <CardContent className="text-center">
-              <div className="bg-white p-4 inline-block">
-                <Barcode
-                  value={generatedTreeId}
-                  ref={barcodeRef} // Attach ref here
-                  width={2} // Example styling, adjust as needed
-                  height={100}
-                  // The 'react-barcode' library typically renders to a canvas element.
-                  // The ref will point to this canvas element.
-                />
+            <CardContent className="bg-white pt-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                {/* Barcode Section */}
+                <div className="flex flex-col items-center p-4 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-4">Internal Barcode</span>
+                  <div className="bg-white p-2 rounded border shadow-sm">
+                    <Barcode
+                      value={generatedTreeId}
+                      ref={barcodeRef}
+                      width={1.5}
+                      height={80}
+                      fontSize={12}
+                    />
+                  </div>
+                  <div className="flex gap-2 mt-4 w-full">
+                    <Button variant="outline" size="sm" className="flex-1 text-[10px]" onClick={handlePrintBarcode}>
+                      <Printer className="w-3 h-3 mr-1" /> Print
+                    </Button>
+                    <Button variant="outline" size="sm" className="flex-1 text-[10px]" onClick={handleSaveBarcode}>
+                      <Download className="w-3 h-3 mr-1" /> Save
+                    </Button>
+                  </div>
+                </div>
+
+                {/* QR Code Section */}
+                <div className="flex flex-col items-center p-4 bg-blue-50/50 rounded-xl border border-dashed border-blue-200">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400 mb-4">Public QR Code</span>
+                  <div className="bg-white p-2 rounded border shadow-sm">
+                    <img 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(`${window.location.origin}/view/${generatedTreeId}`)}`} 
+                      alt="QR Code"
+                      width="120"
+                      height="120"
+                    />
+                  </div>
+                  <div className="flex gap-2 mt-4 w-full">
+                    <Button variant="outline" size="sm" className="flex-1 text-[10px] border-blue-200 text-blue-700" onClick={handlePrintQRCode}>
+                      <Printer className="w-3 h-3 mr-1" /> Print
+                    </Button>
+                    <Button variant="outline" size="sm" className="flex-1 text-[10px] border-blue-200 text-blue-700" onClick={handleSaveQRCode}>
+                      <Download className="w-3 h-3 mr-1" /> Save
+                    </Button>
+                  </div>
+                </div>
               </div>
-              <p className="text-sm text-gray-600 mt-4">ID: {generatedTreeId}</p>
-              <div className="flex justify-center gap-4 mt-6 flex-wrap">
-                <Button variant="outline" onClick={handlePrint}>
-                  <Printer className="w-4 h-4 mr-2" />
-                  Print Barcode
+
+              <div className="space-y-4 pt-4 border-t">
+                <Button onClick={handleClear} className="w-full bg-green-600 hover:bg-green-700 py-6 text-lg font-bold">
+                  <X className="w-5 h-5 mr-2" />
+                  Add Another Tree
                 </Button>
-                <Button variant="outline" onClick={handleSave}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Save Barcode
-                </Button>
-                <Button onClick={handleClear}>
-                  <X className="w-4 h-4 mr-2" />
-                  Clear and Add New Tree
-                </Button>
+                <p className="text-center text-xs text-gray-400 italic">
+                  Note: The QR code allows the public to scan and see tree information without logging in.
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -380,7 +460,7 @@ export function FieldUserDashboard() {
                 <div className="pt-4">
                   <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
                     <BarcodeIcon className="w-5 h-5 mr-2" />
-                    {isSubmitting ? 'Saving...' : 'Save & Generate Barcode'}
+                    {isSubmitting ? 'Saving...' : 'Save & Generate Identification'}
                   </Button>
                 </div>
               </form>

@@ -6,11 +6,16 @@ import { AdminHome } from "./pages/admin/AdminHome";
 import { AdminMap } from "./pages/admin/AdminMap";
 import { AdminDatabase } from "./pages/admin/AdminDatabase";
 import { AdminProfile } from "./pages/admin/AdminProfile";
+import { TreePublicView } from "./pages/TreePublicView";
 
 export const router = createBrowserRouter([
   {
     path: "/",
     Component: LoginPage,
+  },
+  {
+    path: "/view/:treeId",
+    Component: TreePublicView,
   },
   {
     path: "/field-user",
