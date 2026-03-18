@@ -1,6 +1,9 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import 'leaflet.markercluster';
+import 'leaflet.markercluster/dist/MarkerCluster.css';
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { TreeData } from '../utils/storage';
 
 // Fix for default marker icons in Leaflet
@@ -20,7 +23,8 @@ interface TreeMapProps {
 export function TreeMap({ trees, selectedTreeId, onTreeClick }: TreeMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
-  const markersRef = useRef<{ [key: string]: L.Marker }>({}); // Store as object for faster lookup
+  const clusterGroupRef = useRef<L.MarkerClusterGroup | null>(null);
+  const markersRef = useRef<{ [key: string]: L.Marker }>({});
 
   const getMarkerColor = (status: TreeData['healthStatus']): string => {
     switch (status) {
@@ -36,7 +40,7 @@ export function TreeMap({ trees, selectedTreeId, onTreeClick }: TreeMapProps) {
   const createCustomIcon = (status: TreeData['healthStatus'], isSelected: boolean = false) => {
     const color = getMarkerColor(status);
     const size = isSelected ? 40 : 30;
-    
+
     return L.divIcon({
       className: 'custom-marker',
       html: `
@@ -98,6 +102,17 @@ export function TreeMap({ trees, selectedTreeId, onTreeClick }: TreeMapProps) {
     };
     L.control.layers(baseMaps).addTo(map);
 
+    // Initialize Marker Cluster Group
+    const clusterGroup = L.markerClusterGroup({
+      spiderfyOnMaxZoom: true,
+      showCoverageOnHover: false,
+      zoomToBoundsOnClick: true,
+      // Increased max cluster radius to make it easier to group when zoomed out
+      maxClusterRadius: 40,
+    });
+    map.addLayer(clusterGroup);
+    clusterGroupRef.current = clusterGroup;
+
     mapInstanceRef.current = map;
 
     return () => {
@@ -110,10 +125,10 @@ export function TreeMap({ trees, selectedTreeId, onTreeClick }: TreeMapProps) {
 
   // 2. UPDATE MARKERS
   useEffect(() => {
-    if (!mapInstanceRef.current) return;
+    if (!mapInstanceRef.current || !clusterGroupRef.current) return;
 
-    // Clear existing markers
-    Object.values(markersRef.current).forEach(marker => marker.remove());
+    // Clear existing markers from the cluster group
+    clusterGroupRef.current.clearLayers();
     markersRef.current = {};
 
     if (trees.length === 0) return;
@@ -137,13 +152,17 @@ export function TreeMap({ trees, selectedTreeId, onTreeClick }: TreeMapProps) {
             <p style="margin: 4px 0; font-size: 11px; color: #666;">${new Date(tree.dateAdded).toLocaleDateString()}</p>
           </div>
         </div>
-      `);
+      `, {
+        // Auto-close ensures only one popup is open at a time
+        autoClose: true,
+        closeOnClick: true
+      });
 
       marker.on('click', () => {
         if (onTreeClick) onTreeClick(tree);
       });
 
-      marker.addTo(mapInstanceRef.current!);
+      clusterGroupRef.current!.addLayer(marker);
       markersRef.current[tree.id] = marker; // Store by ID for easy selection
       bounds.extend([tree.latitude, tree.longitude]);
     });
@@ -156,18 +175,22 @@ export function TreeMap({ trees, selectedTreeId, onTreeClick }: TreeMapProps) {
 
   // 3. ZOOM TO SELECTED TREE
   useEffect(() => {
-    if (!mapInstanceRef.current || !selectedTreeId) return;
+    if (!mapInstanceRef.current || !selectedTreeId || !clusterGroupRef.current) return;
 
     const selectedTree = trees.find(t => t.id === selectedTreeId);
     if (selectedTree) {
-      // Zoom in deeper (level 20) for the high-res satellite view
-      mapInstanceRef.current.setView([selectedTree.latitude, selectedTree.longitude], 20, {
-        animate: true,
-      });
-
       const marker = markersRef.current[selectedTreeId];
       if (marker) {
-        marker.openPopup();
+        // Zoom to the tree and open its popup
+        // Use zoomToLocation if the marker is in a cluster
+        clusterGroupRef.current.zoomToShowLayer(marker, () => {
+          marker.openPopup();
+        });
+
+        // Fallback for direct view if needed (though zoomToShowLayer handles clustering)
+        mapInstanceRef.current.setView([selectedTree.latitude, selectedTree.longitude], 20, {
+          animate: true,
+        });
       }
     }
   }, [selectedTreeId, trees]);
