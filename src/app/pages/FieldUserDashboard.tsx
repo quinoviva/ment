@@ -208,11 +208,15 @@ export function FieldUserDashboard() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center">
-              <TreePine className="w-7 h-7 text-white" />
+            <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center overflow-hidden">
+              <img 
+                src="/img/Pototan-logo.png" 
+                alt="Municipality of Pototan Logo" 
+                className="w-10 h-10 object-contain" 
+              />
             </div>
             <div>
-              <h1 className="text-2xl">Field User Dashboard</h1>
+              <h1 className="text-2xl font-bold">MENRO</h1>
               <p className="text-sm text-gray-600">Welcome, {user.username}</p>
             </div>
           </div>

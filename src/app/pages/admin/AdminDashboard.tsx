@@ -37,11 +37,15 @@ export function AdminDashboard() {
       <div className="w-64 bg-white border-r flex flex-col">
         <div className="p-6 border-b">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center">
-              <TreePine className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center overflow-hidden">
+              <img 
+                src="/img/Pototan-logo.png" 
+                alt="Municipality of Pototan Logo" 
+                className="w-8 h-8 object-contain" 
+              />
             </div>
             <div>
-              <h1 className="text-lg">MENRO Admin</h1>
+              <h1 className="text-lg font-semibold">MENRO Admin</h1>
               <p className="text-xs text-gray-500">{user.username}</p>
             </div>
           </div>

@@ -6,7 +6,7 @@ import { Label } from '../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { initializeSampleData } from '../utils/sampleData';
 import { toast } from 'sonner';
-import { TreePine, Lock, User } from 'lucide-react';
+import { Lock, User } from 'lucide-react';
 
 // Import Firebase functions and config
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
