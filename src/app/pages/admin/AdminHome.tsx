@@ -52,17 +52,45 @@ export function AdminHome() {
         }
       }
     },
-    onError(error) {
+    async onError(error: any) {
       console.error("Scanner error:", error);
       if (isScannerOpen) {
-        toast.error("Camera access error. Please ensure permissions are granted.");
+        // More specific error handling
+        if (!window.isSecureContext) {
+          toast.error("Barcode scanning requires a secure context (HTTPS or localhost).");
+          return;
+        }
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          toast.error("Your browser does not support camera access APIs.");
+          return;
+        }
+
+        if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+          toast.error("Camera access denied. Please grant permission in your browser settings.");
+        } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+          // If environment fails, try listing devices to see if any camera exists
+          try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const cameras = devices.filter(d => d.kind === 'videoinput');
+            if (cameras.length === 0) {
+              toast.error("No camera hardware detected on this device.");
+            } else {
+              toast.error(`Camera found but could not be initialized. Found ${cameras.length} cameras.`);
+            }
+          } catch (e) {
+            toast.error("No camera detected on this device.");
+          }
+        } else if (error.name === 'OverconstrainedError') {
+          toast.error("The camera constraints are not supported by your device.");
+        } else {
+          toast.error(`Camera error: ${error.message || "Please ensure permissions are granted."}`);
+        }
       }
     },
     paused: !isScannerOpen, // Only run camera when dialog is open
     constraints: { 
-      video: { 
-        facingMode: "environment" // Prefer the rear camera on mobile devices
-      } 
+      video: true // Simple constraint for better detection fallback
     }
   });
 
@@ -240,6 +268,7 @@ export function AdminHome() {
             {/* The video element that receives the hook ref */}
             <video 
               ref={ref} 
+              autoPlay
               playsInline
               muted
               className="rounded-lg border-2 border-dashed border-gray-300 w-full aspect-video object-cover" 
