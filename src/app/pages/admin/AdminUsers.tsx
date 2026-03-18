@@ -37,7 +37,7 @@ export function AdminUsers() {
       // For now, simulating with dummy data to populate the table.
       // const fetchedUsers = await storage.getUsers(); // Assuming storage.getUsers() will be implemented
       const fetchedUsers: AppUser[] = [
-        { username: 'admin_user@example.com', role: 'admin_user' },
+        { username: 'admin_user@menro.com', role: 'admin_user' },
         { username: 'field_user@example.com', role: 'field_user' },
         { username: 'another_field@example.com', role: 'field_user' },
       ];

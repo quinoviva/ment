@@ -33,9 +33,9 @@ export function LoginPage() {
     setIsLoading(true);
 
     // Hardcoded bypass for the demo admin account
-    if (username === 'admin_user@example.com' && password === 'admin2026') {
+    if (username === 'admin_user@menro.com' && password === 'admin2026') {
       const adminUser: AppUser = {
-        username: 'admin_user@example.com',
+        username: 'admin_user@menro.com',
         role: 'admin_user',
       };
       storage.setCurrentUser(adminUser);
