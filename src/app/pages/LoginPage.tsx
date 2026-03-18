@@ -91,7 +91,7 @@ export function LoginPage() {
         <CardHeader className="space-y-3 text-center">
         <div className="mx-auto w-16 h-16 bg-green-600 rounded-full flex items-center justify-center overflow-hidden">
             <img 
-              src="/home/user/ment/img/Pototan-logo.png" 
+              src="/home/user/ment/public/img/Pototan-logo.png" 
               alt="Municipality of Pototan Logo" 
               className="w-12 h-12 object-contain" 
             />
