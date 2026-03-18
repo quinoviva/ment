@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { storage, TreeData, User as AppUser } from '../utils/storage';
 import { toast } from 'sonner';
-import { MapPin, TreePine, LogOut, Wifi, WifiOff, Barcode as BarcodeIcon, X, Printer, Download } from 'lucide-react';
+import { MapPin, TreePine, LogOut, Wifi, WifiOff, Barcode as BarcodeIcon, X, Printer, Download, Loader2 } from 'lucide-react';
 
 const TREE_SPECIES = [
   'Narra',
@@ -41,7 +41,9 @@ export function FieldUserDashboard() {
   const [age, setAge] = useState('');
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
+  const [address, setAddress] = useState<string>('');
   const [isCapturingLocation, setIsCapturingLocation] = useState(false);
+  const [isGeocoding, setIsGeocoding] = useState(false);
   const [generatedTreeId, setGeneratedTreeId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const barcodeRef = useRef<HTMLCanvasElement>(null); // Ref to capture the barcode canvas
@@ -67,6 +69,42 @@ export function FieldUserDashboard() {
     };
   }, [navigate]);
 
+  const reverseGeocode = async (lat: number, lon: number) => {
+    setIsGeocoding(true);
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`, {
+        headers: {
+          'Accept-Language': 'en-US,en;q=0.5',
+          'User-Agent': 'MENRO-Pototan-Tree-Registry/1.0'
+        }
+      });
+      const data = await response.json();
+      
+      if (data && data.address) {
+        // Construct a localized address string
+        const addr = data.address;
+        const village = addr.village || addr.suburb || addr.neighbourhood || '';
+        const road = addr.road || '';
+        const city = addr.city || addr.town || addr.municipality || 'Pototan';
+        const province = addr.province || addr.state || 'Iloilo';
+        
+        let formattedAddress = '';
+        if (village) formattedAddress += `Brgy. ${village}, `;
+        if (road) formattedAddress += `${road}, `;
+        formattedAddress += `${city}, ${province}`;
+        
+        setAddress(formattedAddress);
+      } else {
+        setAddress('Address not found');
+      }
+    } catch (error) {
+      console.error("Geocoding error:", error);
+      setAddress('Error fetching address');
+    } finally {
+      setIsGeocoding(false);
+    }
+  };
+
   const captureLocation = () => {
     if (!navigator.geolocation) {
       toast.error('Geolocation is not supported by your device');
@@ -77,10 +115,15 @@ export function FieldUserDashboard() {
     
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setLatitude(position.coords.latitude);
-        setLongitude(position.coords.longitude);
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        setLatitude(lat);
+        setLongitude(lon);
         setIsCapturingLocation(false);
         toast.success('Location captured successfully!');
+        
+        // Fetch human-readable address
+        reverseGeocode(lat, lon);
       },
       (error) => {
         setIsCapturingLocation(false);
@@ -112,6 +155,7 @@ export function FieldUserDashboard() {
         age: parseInt(age),
         latitude,
         longitude,
+        address,
         dateAdded: new Date().toISOString(),
         addedBy: user?.username || 'field_user',
       };
@@ -242,6 +286,7 @@ export function FieldUserDashboard() {
     setAge('');
     setLatitude(null);
     setLongitude(null);
+    setAddress('');
     setGeneratedTreeId(null);
   };
 
@@ -255,7 +300,7 @@ export function FieldUserDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 p-4">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
           <div className="flex items-center gap-3">
@@ -448,9 +493,19 @@ export function FieldUserDashboard() {
                         <MapPin className="w-4 h-4 text-green-600" />
                         <span className="text-green-700">Location Captured</span>
                       </div>
-                      <div className="text-gray-600">
-                        <div>Latitude: {latitude.toFixed(6)}</div>
-                        <div>Longitude: {longitude.toFixed(6)}</div>
+                      <div className="text-gray-600 space-y-1">
+                        <div className="flex items-center gap-2">
+                           <span className="font-bold">Address:</span>
+                           {isGeocoding ? (
+                             <div className="flex items-center gap-1 text-blue-600 animate-pulse">
+                               <Loader2 className="w-3 h-3 animate-spin" /> 
+                               Identifying address...
+                             </div>
+                           ) : (
+                             <span className="text-green-800 font-medium">{address}</span>
+                           )}
+                        </div>
+                        <div className="text-[10px] opacity-60">Lat: {latitude.toFixed(6)}, Long: {longitude.toFixed(6)}</div>
                       </div>
                     </div>
                   )}
@@ -458,7 +513,7 @@ export function FieldUserDashboard() {
 
                 {/* Submit Button */}
                 <div className="pt-4">
-                  <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
+                  <Button type="submit" className="w-full" size="lg" disabled={isSubmitting || isGeocoding}>
                     <BarcodeIcon className="w-5 h-5 mr-2" />
                     {isSubmitting ? 'Saving...' : 'Save & Generate Identification'}
                   </Button>

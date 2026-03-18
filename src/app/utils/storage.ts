@@ -11,6 +11,7 @@ export interface TreeData {
   age: number;
   latitude: number;
   longitude: number;
+  address?: string;
   dateAdded: string; // Store as ISO string
   addedBy: string;
 }

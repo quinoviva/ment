@@ -3,7 +3,7 @@ import { useParams } from 'react-router';
 import { storage, TreeData } from '../utils/storage';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { MapPin, TreePine, Activity, Calendar, User, Info } from 'lucide-react';
+import { MapPin, TreePine, Activity, Calendar, User, Info, Navigation } from 'lucide-react';
 
 export function TreePublicView() {
   const { treeId } = useParams<{ treeId: string }>();
@@ -78,7 +78,7 @@ export function TreePublicView() {
             />
           </div>
           <h1 className="text-3xl font-extrabold text-green-900 tracking-tight">MENRO Pototan</h1>
-          <p className="text-green-700 font-medium uppercase text-sm tracking-widest mt-1">Tree Management System</p>
+          <p className="text-green-700 font-medium uppercase text-sm tracking-widest mt-1">Tree Registry Program</p>
         </div>
 
         {/* Tree Identity Card */}
@@ -95,6 +95,26 @@ export function TreePublicView() {
              <TreePine className="absolute right-[-20px] bottom-[-20px] w-48 h-48 text-white/10" />
           </div>
           <CardContent className="p-8 space-y-8 bg-white">
+            
+            {/* Location Banner - Prominent Display */}
+            <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-100 shadow-sm">
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-white rounded-xl shadow-sm text-emerald-600">
+                  <MapPin className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Tree Location</p>
+                  <p className="text-xl font-bold text-gray-800 leading-tight">
+                    {tree.address || 'Address not available'}
+                  </p>
+                  <div className="flex items-center gap-1.5 mt-2 text-xs text-gray-500 font-mono bg-white/50 w-fit px-2 py-0.5 rounded border">
+                    <Navigation className="w-3 h-3" />
+                    {tree.latitude.toFixed(6)}, {tree.longitude.toFixed(6)}
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Health Status Banner */}
             <div className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 border border-gray-100">
               <div className="flex items-center gap-3">
@@ -114,18 +134,6 @@ export function TreePublicView() {
 
             {/* Information Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="flex items-start gap-4">
-                <div className="p-2 bg-green-50 rounded-lg">
-                  <MapPin className="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Location Coordinates</p>
-                  <p className="text-gray-800 font-mono text-sm bg-gray-50 px-2 py-1 rounded border border-gray-100">
-                    {tree.latitude.toFixed(6)}, {tree.longitude.toFixed(6)}
-                  </p>
-                </div>
-              </div>
-
               <div className="flex items-start gap-4">
                 <div className="p-2 bg-green-50 rounded-lg">
                   <Calendar className="w-5 h-5 text-green-600" />
@@ -152,7 +160,7 @@ export function TreePublicView() {
                 </div>
               </div>
 
-              <div className="flex items-start gap-4">
+              <div className="flex items-start gap-4 col-span-1 md:col-span-2">
                 <div className="p-2 bg-green-50 rounded-lg">
                   <Info className="w-5 h-5 text-green-600" />
                 </div>
