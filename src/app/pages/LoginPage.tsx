@@ -32,8 +32,21 @@ export function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
 
+    // Hardcoded bypass for the demo admin account
+    if (username === 'admin_user@example.com' && password === 'admin2026') {
+      const adminUser: AppUser = {
+        username: 'admin_user@example.com',
+        role: 'admin_user',
+      };
+      storage.setCurrentUser(adminUser);
+      toast.success("Welcome, Admin! (Demo Bypass)");
+      navigate('/admin');
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      // Firebase Authentication
+      // Firebase Authentication for all other accounts
       const userCredential = await signInWithEmailAndPassword(auth, username, password);
       const firebaseUser = userCredential.user;
 
@@ -41,19 +54,18 @@ export function LoginPage() {
       const userProfile = await storage.fetchUserByUid(firebaseUser.uid);
 
       let appUserRole: AppUser['role'];
+      
       if (userProfile && userProfile.role) {
         appUserRole = userProfile.role;
       } else {
         // Fallback or error handling if role is not found
         console.error(`Role not found for user ${firebaseUser.uid}. Defaulting to field_user.`);
-        appUserRole = 'field_user'; // Default role, or could throw an error
-        // Optionally, could also create a default user profile in Firestore here if it doesn't exist
+        appUserRole = 'field_user'; // Default role
       }
 
       // Create a user object conforming to our AppUser interface
       const user: AppUser = {
         username: firebaseUser.email || username, // Use email from Firebase Auth
-        
         role: appUserRole,
       };
 
