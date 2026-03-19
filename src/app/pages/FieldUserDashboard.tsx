@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { storage, TreeData, User as AppUser } from '../utils/storage';
 import { toast } from 'sonner';
 import { MapPin, TreePine, LogOut, Wifi, WifiOff, Barcode as BarcodeIcon, X, Printer, Download, Loader2 } from 'lucide-react';
+import { getTreePublicViewUrl, getQRCodeApiUrl } from '../utils/qrUtils';
 
 const TREE_SPECIES = [
   'Narra',
@@ -111,6 +112,12 @@ export function FieldUserDashboard() {
       return;
     }
 
+    // Check if we are in a secure context (HTTPS)
+    if (!window.isSecureContext) {
+      toast.error('Geolocation requires a secure connection (HTTPS or localhost). Please use the ngrok URL.');
+      return;
+    }
+
     setIsCapturingLocation(true);
     
     navigator.geolocation.getCurrentPosition(
@@ -127,11 +134,17 @@ export function FieldUserDashboard() {
       },
       (error) => {
         setIsCapturingLocation(false);
-        toast.error(`Error capturing location: ${error.message}`);
+        let errorMsg = error.message;
+        if (error.code === error.PERMISSION_DENIED) {
+          errorMsg = "User denied location access. Please enable it in your browser settings.";
+        } else if (error.code === error.TIMEOUT) {
+          errorMsg = "Location request timed out. Please try again.";
+        }
+        toast.error(`Error capturing location: ${errorMsg}`);
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
+        timeout: 15000, // Increased timeout for better mobile reliability
         maximumAge: 0,
       }
     );
@@ -208,8 +221,8 @@ export function FieldUserDashboard() {
 
   const handlePrintQRCode = () => {
     if (!generatedTreeId) return;
-    const publicUrl = `${window.location.origin}/view/${generatedTreeId}`;
-    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(publicUrl)}`;
+    const publicUrl = getTreePublicViewUrl(generatedTreeId);
+    const qrCodeUrl = getQRCodeApiUrl(publicUrl, 300);
     
     const printWindow = window.open('', '_blank');
     if (printWindow) {
@@ -259,8 +272,8 @@ export function FieldUserDashboard() {
 
   const handleSaveQRCode = () => {
     if (!generatedTreeId) return;
-    const publicUrl = `${window.location.origin}/view/${generatedTreeId}`;
-    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(publicUrl)}`;
+    const publicUrl = getTreePublicViewUrl(generatedTreeId);
+    const qrCodeUrl = getQRCodeApiUrl(publicUrl, 300);
     
     fetch(qrCodeUrl)
       .then(res => res.blob())
@@ -365,7 +378,7 @@ export function FieldUserDashboard() {
                   <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400 mb-4">Public QR Code</span>
                   <div className="bg-white p-2 rounded border shadow-sm">
                     <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(`${window.location.origin}/view/${generatedTreeId}`)}`} 
+                      src={getQRCodeApiUrl(getTreePublicViewUrl(generatedTreeId), 120)} 
                       alt="QR Code"
                       width="120"
                       height="120"

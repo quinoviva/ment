@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { Pencil, Trash2, MapPin, RefreshCw, Eye, Search, Download, Printer, Barcode as BarcodeIcon } from 'lucide-react';
 import Barcode from 'react-barcode';
 import { useZxing } from "react-zxing";
+import { getTreePublicViewUrl, getQRCodeApiUrl } from '../../utils/qrUtils';
 
 const TREE_SPECIES = [
   'Narra', 'Mahogany', 'Acacia', 'Mango', 'Ipil-ipil',
@@ -226,8 +227,8 @@ export function AdminDatabase() {
 
   const handleDownloadQRCode = () => {
     if (!viewingTree) return;
-    const publicUrl = `${window.location.origin}/view/${viewingTree.id}`;
-    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(publicUrl)}`;
+    const publicUrl = getTreePublicViewUrl(viewingTree.id);
+    const qrCodeUrl = getQRCodeApiUrl(publicUrl, 300);
     
     // Create a temporary link to download the image from the API
     fetch(qrCodeUrl)
@@ -277,8 +278,8 @@ export function AdminDatabase() {
 
   const handlePrintQRCode = () => {
     if (!viewingTree) return;
-    const publicUrl = `${window.location.origin}/view/${viewingTree.id}`;
-    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(publicUrl)}`;
+    const publicUrl = getTreePublicViewUrl(viewingTree.id);
+    const qrCodeUrl = getQRCodeApiUrl(publicUrl, 300);
     
     const printWindow = window.open('', '_blank');
     if (printWindow) {
