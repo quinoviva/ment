@@ -99,6 +99,15 @@ export function AdminDashboard() {
                 Users
               </Button>
             </Link>
+            <Link to="/admin/reports">
+              <Button
+                variant={isActive('/admin/reports') ? 'default' : 'ghost'}
+                className="w-full justify-start"
+              >
+                <TreePine className="w-4 h-4 mr-3" />
+                Reports
+              </Button>
+            </Link>
           </div>
         </nav>
 

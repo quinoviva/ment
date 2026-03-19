@@ -7,6 +7,7 @@ import { AdminMap } from "./pages/admin/AdminMap";
 import { AdminDatabase } from "./pages/admin/AdminDatabase";
 import { AdminProfile } from "./pages/admin/AdminProfile";
 import { TreePublicView } from "./pages/TreePublicView";
+import ReportGenerator from './pages/admin/reports/ReportGenerator';
 
 export const router = createBrowserRouter([
   {
@@ -40,6 +41,10 @@ export const router = createBrowserRouter([
       {
         path: "profile",
         Component: AdminProfile,
+      },
+      { // Add the new route for the reports module
+        path: "reports",
+        Component: ReportGenerator,
       },
     ],
   },

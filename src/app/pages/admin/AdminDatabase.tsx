@@ -326,7 +326,7 @@ export function AdminDatabase() {
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-3xl mb-2 text-green-800 font-bold">Tree Database</h1>
+            <h1 className="text-3xl mb-2 text-green-800 font-bold">MENRO Tree Management System</h1>
             <p className="text-gray-600">Manage all registered tree records</p>
           </div>
           <Button onClick={loadTrees} variant="outline" disabled={isLoading}>
@@ -361,7 +361,7 @@ export function AdminDatabase() {
       {/* Table */}
       <Card className="border-green-100">
         <CardHeader className="bg-green-50/50">
-          <CardTitle className="text-lg">All Trees ({filteredTrees.length})</CardTitle>
+          <CardTitle className="text-lg">Tree Database ({filteredTrees.length})</CardTitle>
           <CardDescription>Comprehensive list of tree inventory</CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
@@ -515,7 +515,7 @@ export function AdminDatabase() {
             <div className="flex gap-2 mt-4">
               <Button variant="outline" size="sm" onClick={handleDownloadBarcode} className="h-8 text-[10px] border-green-200 text-green-700 hover:bg-green-100">
                 <Download className="w-3 h-3 mr-1" />
-                Download
+                Save
               </Button>
               <Button variant="outline" size="sm" onClick={handlePrintBarcode} className="h-8 text-[10px] border-green-200 text-green-700 hover:bg-green-100">
                 <Printer className="w-3 h-3 mr-1" />
@@ -537,7 +537,7 @@ export function AdminDatabase() {
             <div className="flex gap-2 mt-4">
               <Button variant="outline" size="sm" onClick={handleDownloadQRCode} className="h-8 text-[10px] border-blue-200 text-blue-700 hover:bg-blue-100">
                 <Download className="w-3 h-3 mr-1" />
-                Download
+                Save
               </Button>
               <Button variant="outline" size="sm" onClick={handlePrintQRCode} className="h-8 text-[10px] border-blue-200 text-blue-700 hover:bg-blue-100">
                 <Printer className="w-3 h-3 mr-1" />
