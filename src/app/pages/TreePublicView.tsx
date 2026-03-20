@@ -4,6 +4,7 @@ import { storage, TreeData } from '../utils/storage';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { MapPin, TreePine, Activity, Calendar, User, Info, Navigation } from 'lucide-react';
+import { calculateAge } from '../utils/dateUtils';
 
 export function TreePublicView() {
   const { treeId } = useParams<{ treeId: string }>();
@@ -89,8 +90,16 @@ export function TreePublicView() {
                 <Badge className="bg-white/20 hover:bg-white/30 text-white border-none px-3 py-1 mb-3 backdrop-blur-md">
                    Official Registry Record
                 </Badge>
-                <h2 className="text-4xl font-black mb-1">{tree.name}</h2>
-                <p className="text-green-100 text-lg opacity-90 italic">{tree.species}</p>
+                <h3 className="text-green-300 font-bold uppercase tracking-tighter text-sm mb-1">Species</h3>
+                <h2 className="text-5xl font-black mb-4">{tree.species}</h2>
+                
+                <div className="flex items-center gap-2 mt-4 pt-4 border-t border-white/10">
+                  <div className="w-1 h-8 bg-green-400 rounded-full" />
+                  <div>
+                    <p className="text-green-100/60 text-[10px] uppercase font-bold">Identifier</p>
+                    <p className="text-white font-bold">{tree.name}</p>
+                  </div>
+                </div>
              </div>
              <TreePine className="absolute right-[-20px] bottom-[-20px] w-48 h-48 text-white/10" />
           </div>
@@ -128,12 +137,32 @@ export function TreePublicView() {
               </div>
               <div className="text-right">
                  <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Estimated Age</p>
-                 <p className="text-xl font-bold text-green-700">{tree.age} <span className="text-sm font-medium text-gray-500">Years</span></p>
+                 <p className="text-xl font-bold text-green-700">
+                   {tree.datePlanted ? calculateAge(tree.datePlanted) : `${tree.age} Years`}
+                 </p>
               </div>
             </div>
 
             {/* Information Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {tree.datePlanted && (
+                <div className="flex items-start gap-4">
+                  <div className="p-2 bg-emerald-50 rounded-lg">
+                    <Calendar className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Date Planted</p>
+                    <p className="text-gray-800 font-semibold">
+                      {new Date(tree.datePlanted).toLocaleDateString(undefined, { 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      })}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-start gap-4">
                 <div className="p-2 bg-green-50 rounded-lg">
                   <Calendar className="w-5 h-5 text-green-600" />

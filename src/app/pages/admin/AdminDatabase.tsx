@@ -10,10 +10,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Badge } from '../../components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { toast } from 'sonner';
-import { Pencil, Trash2, MapPin, RefreshCw, Eye, Search, Download, Printer, Barcode as BarcodeIcon } from 'lucide-react';
+import { Pencil, Trash2, MapPin, RefreshCw, Eye, Search, Download, Printer, Barcode as BarcodeIcon, Calendar } from 'lucide-react';
 import Barcode from 'react-barcode';
 import { useZxing } from "react-zxing";
 import { getTreePublicViewUrl, getQRCodeApiUrl } from '../../utils/qrUtils';
+import { calculateAge, calculateAgeInYears } from '../../utils/dateUtils';
 
 const TREE_SPECIES = [
   'Narra', 'Mahogany', 'Acacia', 'Mango', 'Ipil-ipil',
@@ -37,10 +38,11 @@ export function AdminDatabase() {
 
   // Form state
   const [formData, setFormData] = useState({
-    name: '',
     species: '',
+    name: '',
     healthStatus: 'Good' as TreeData['healthStatus'],
-    age: '',
+    ageDisplay: '',
+    datePlanted: '',
     latitude: '',
     longitude: '',
   });
@@ -134,15 +136,26 @@ export function AdminDatabase() {
   const handleEdit = (tree: TreeData) => {
     setEditingTree(tree);
     setFormData({
-      name: tree.name,
       species: tree.species,
+      name: tree.name,
       healthStatus: tree.healthStatus,
-      age: tree.age.toString(),
+      ageDisplay: tree.datePlanted ? calculateAge(tree.datePlanted) : tree.age.toString(),
+      datePlanted: tree.datePlanted || '',
       latitude: tree.latitude.toString(),
       longitude: tree.longitude.toString(),
     });
     setIsEditDialogOpen(true);
   };
+
+  // Sync age display when datePlanted is changed in edit form
+  useEffect(() => {
+    if (formData.datePlanted) {
+      setFormData(prev => ({
+        ...prev,
+        ageDisplay: calculateAge(prev.datePlanted)
+      }));
+    }
+  }, [formData.datePlanted]);
 
   const handleView = (tree: TreeData) => {
     setViewingTree(tree);
@@ -173,11 +186,17 @@ export function AdminDatabase() {
   const handleUpdate = async () => {
     if (!editingTree) return;
 
+    if (!formData.datePlanted) {
+      toast.error('Please select the date planted');
+      return;
+    }
+
     const updatedTree: Partial<TreeData> = {
       name: formData.name,
       species: formData.species,
       healthStatus: formData.healthStatus,
-      age: parseInt(formData.age),
+      age: calculateAgeInYears(formData.datePlanted),
+      datePlanted: formData.datePlanted,
       latitude: parseFloat(formData.latitude),
       longitude: parseFloat(formData.longitude),
     };
@@ -370,20 +389,40 @@ export function AdminDatabase() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Barcode</TableHead>
-                  <TableHead>Name</TableHead>
                   <TableHead>Species</TableHead>
+                  <TableHead>Participants</TableHead>
                   <TableHead>Health Status</TableHead>
-                  <TableHead>Age (Years)</TableHead>
+                  <TableHead>Age</TableHead>
+                  <TableHead>Planted</TableHead>
                   <TableHead>Location</TableHead>
                   <TableHead>Added By</TableHead>
-                  <TableHead>Date Added</TableHead>
+                  <TableHead>Tag</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredTrees.map((tree) => (
                   <TableRow key={tree.id} className="hover:bg-green-50/30">
+                    <TableCell className="font-bold text-green-800">{tree.species}</TableCell>
+                    <TableCell className="font-semibold text-green-900">{tree.name}</TableCell>
+                    <TableCell>
+                      <Badge className={`${getHealthStatusColor(tree.healthStatus)} border-none text-white`}>
+                        {tree.healthStatus}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{tree.datePlanted ? calculateAge(tree.datePlanted) : `${tree.age}y`}</TableCell>
+                    <TableCell className="text-xs">
+                      {tree.datePlanted ? new Date(tree.datePlanted).toLocaleDateString() : 'N/A'}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1 text-xs text-gray-500">
+                        <MapPin className="w-3 h-3 text-green-600" />
+                        <span className="truncate max-w-[80px]">
+                          {tree.latitude.toFixed(4)}, {tree.longitude.toFixed(4)}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm italic text-gray-600">{tree.addedBy}</TableCell>
                     <TableCell>
                       <div className="scale-75 origin-left -my-2 opacity-80 hover:opacity-100 transition-opacity">
                         <Barcode 
@@ -394,26 +433,6 @@ export function AdminDatabase() {
                           displayValue={false}
                         />
                       </div>
-                    </TableCell>
-                    <TableCell className="font-semibold text-green-900">{tree.name}</TableCell>
-                    <TableCell>{tree.species}</TableCell>
-                    <TableCell>
-                      <Badge className={`${getHealthStatusColor(tree.healthStatus)} border-none text-white`}>
-                        {tree.healthStatus}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{tree.age}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1 text-xs text-gray-500">
-                        <MapPin className="w-3 h-3 text-green-600" />
-                        <span className="truncate max-w-[100px]">
-                          {tree.latitude.toFixed(4)}, {tree.longitude.toFixed(4)}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm italic text-gray-600">{tree.addedBy}</TableCell>
-                    <TableCell className="text-xs text-gray-500">
-                      {new Date(tree.dateAdded).toLocaleDateString()}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
@@ -491,9 +510,7 @@ export function AdminDatabase() {
       </Dialog>
 
       {/* View Dialog */}
-      {/* View Dialog */}
 <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-  {/* Changed max-w-md to sm:max-w-2xl for better horizontal fit */}
   <DialogContent className="sm:max-w-6xl">
     <DialogHeader>
       <DialogTitle className="text-xl text-green-800">Tree Record Details</DialogTitle>
@@ -549,14 +566,15 @@ export function AdminDatabase() {
         </div>
 
         {/* Tree Information Grid */}
-        <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-          <div className="space-y-1">
-            <Label className="text-gray-400 text-[10px] uppercase tracking-wider font-bold">Tree Name</Label>
-            <p className="font-semibold text-green-900">{viewingTree.name}</p>
-          </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-4">
+          {/* Species FIRST */}
           <div className="space-y-1">
             <Label className="text-gray-400 text-[10px] uppercase tracking-wider font-bold">Species</Label>
-            <p className="font-semibold text-green-900">{viewingTree.species}</p>
+            <p className="font-semibold text-green-900 text-lg">{viewingTree.species}</p>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-gray-400 text-[10px] uppercase tracking-wider font-bold">Participants</Label>
+            <p className="font-semibold text-green-900">{viewingTree.name}</p>
           </div>
           <div className="space-y-1">
             <Label className="text-gray-400 text-[10px] uppercase tracking-wider font-bold">Condition</Label>
@@ -568,7 +586,16 @@ export function AdminDatabase() {
           </div>
           <div className="space-y-1">
             <Label className="text-gray-400 text-[10px] uppercase tracking-wider font-bold">Estimated Age</Label>
-            <p className="font-semibold text-green-900">{viewingTree.age} years</p>
+            <p className="font-semibold text-green-900">{viewingTree.datePlanted ? calculateAge(viewingTree.datePlanted) : `${viewingTree.age} years`}</p>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-gray-400 text-[10px] uppercase tracking-wider font-bold">Date Planted</Label>
+            <div className="flex items-center gap-1 mt-0.5">
+              <Calendar className="w-3 h-3 text-green-600" />
+              <p className="font-semibold text-green-900">
+                {viewingTree.datePlanted ? new Date(viewingTree.datePlanted).toLocaleDateString() : 'Not recorded'}
+              </p>
+            </div>
           </div>
           <div className="space-y-1">
             <Label className="text-gray-400 text-[10px] uppercase tracking-wider font-bold">Coordinates</Label>
@@ -587,7 +614,7 @@ export function AdminDatabase() {
             <Label className="text-gray-400 text-[10px] uppercase tracking-wider font-bold">Registration Timestamp</Label>
             <p className="text-xs text-gray-600">{new Date(viewingTree.dateAdded).toLocaleString()}</p>
           </div>
-          <div className="col-span-2 space-y-1">
+          <div className="col-span-3 space-y-1">
             <Label className="text-gray-400 text-[10px] uppercase tracking-wider font-bold">System Tracking ID</Label>
             <p className="text-[10px] text-gray-500 font-mono break-all bg-gray-100 p-2 rounded border border-gray-200">
               {viewingTree.id}
@@ -610,19 +637,11 @@ export function AdminDatabase() {
             <DialogDescription>Modify existing tree data in the central database</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div>
-              <Label htmlFor="edit-name">Tree Name / Identifier</Label>
-              <Input
-                id="edit-name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="focus-visible:ring-green-500"
-              />
-            </div>
+            {/* Species FIRST in Edit */}
             <div>
               <Label htmlFor="edit-species">Species</Label>
               <Select value={formData.species} onValueChange={(value) => setFormData({ ...formData, species: value })}>
-                <SelectTrigger id="edit-species" className="focus:ring-green-500">
+                <SelectTrigger id="edit-species" className="focus:ring-green-500 border-green-200">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -633,10 +652,19 @@ export function AdminDatabase() {
               </Select>
             </div>
             <div>
+              <Label htmlFor="edit-name">Participants / Identifier</Label>
+              <Input
+                id="edit-name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="focus-visible:ring-green-500"
+              />
+            </div>
+            <div>
               <Label className="mb-2 block">Health Status Condition</Label>
               <RadioGroup
                 value={formData.healthStatus}
-                onValueChange={(value) => setFormData({ ...formData, healthStatus: value as TreeData['healthStatus'] })}
+                onValueChange={(value) => setHealthStatus(value as TreeData['healthStatus'])}
                 className="grid grid-cols-2 gap-2"
               >
                 {(['Excellent', 'Good', 'Fair', 'Poor', 'Dead'] as const).map((status) => (
@@ -647,18 +675,30 @@ export function AdminDatabase() {
                 ))}
               </RadioGroup>
             </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="col-span-1">
-                <Label htmlFor="edit-age">Age (Yrs)</Label>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-datePlanted">Date Planted</Label>
                 <Input
-                  id="edit-age"
-                  type="number"
-                  value={formData.age}
-                  onChange={(e) => setFormData({ ...formData, age: e.target.value })}
+                  id="edit-datePlanted"
+                  type="date"
+                  value={formData.datePlanted}
+                  onChange={(e) => setFormData({ ...formData, datePlanted: e.target.value })}
                   className="focus-visible:ring-green-500"
                 />
               </div>
-              <div className="col-span-1">
+              <div>
+                <Label htmlFor="edit-age">Calculated Age</Label>
+                <Input
+                  id="edit-age"
+                  type="text"
+                  value={formData.ageDisplay}
+                  readOnly
+                  className="bg-gray-50 text-green-800 font-semibold"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
                 <Label htmlFor="edit-latitude">Lat</Label>
                 <Input
                   id="edit-latitude"
@@ -669,7 +709,7 @@ export function AdminDatabase() {
                   className="focus-visible:ring-green-500"
                 />
               </div>
-              <div className="col-span-1">
+              <div>
                 <Label htmlFor="edit-longitude">Long</Label>
                 <Input
                   id="edit-longitude"

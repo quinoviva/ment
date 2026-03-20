@@ -198,7 +198,7 @@ export function AdminHome() {
             <CardContent>
               <div className="space-y-3">
                 <div>
-                  <span className="text-sm text-gray-600">Tree Name:</span>
+                  <span className="text-sm text-gray-600">Participants:</span>
                   <p className="font-medium">{scannedTree.name}</p>
                 </div>
                 <div>

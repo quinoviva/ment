@@ -2,14 +2,18 @@
 import { TreeData } from "../../../utils/storage";
 
 export const exportToCSV = (trees: TreeData[]) => {
-  const headers = ['ID', 'Species', 'Health Status', 'Address', 'Date Added'];
+  const headers = ['Species', 'ID', 'Participants', 'Health Status', 'Age', 'Date Planted', 'Address', 'Date Added', 'Added By'];
   
   const rows = trees.map(tree => [
-    tree.id,
     tree.species,
+    tree.id,
+    `"${tree.name.replace(/"/g, '""')}"`,
     tree.healthStatus,
+    tree.age,
+    tree.datePlanted || 'N/A',
     `"${tree.address?.replace(/"/g, '""') || ''}"`, // Escape commas in address
-    tree.dateAdded
+    tree.dateAdded,
+    tree.addedBy
   ]);
 
   const csvContent = [

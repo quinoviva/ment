@@ -1,11 +1,11 @@
-import React from 'react';
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { TreeData } from '../utils/storage';
+import { calculateAge } from '../utils/dateUtils';
 
 // Fix for default marker icons in Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -29,206 +29,92 @@ export function TreeMap({ trees, selectedTreeId, onTreeClick }: TreeMapProps) {
 
   const getMarkerColor = (status: TreeData['healthStatus']): string => {
     switch (status) {
-      case 'Excellent': return '#22c55e'; // green
-      case 'Good': return '#3b82f6'; // blue
-      case 'Fair': return '#eab308'; // yellow
-      case 'Poor': return '#f97316'; // orange
-      case 'Dead': return '#ef4444'; // red
-      default: return '#6b7280'; // gray
+      case 'Excellent': return '#22c55e';
+      case 'Good': return '#3b82f6';
+      case 'Fair': return '#eab308';
+      case 'Poor': return '#f97316';
+      case 'Dead': return '#ef4444';
+      default: return '#6b7280';
     }
   };
 
   const createCustomIcon = (status: TreeData['healthStatus'], isSelected: boolean = false) => {
     const color = getMarkerColor(status);
     const size = isSelected ? 40 : 30;
-
     return L.divIcon({
       className: 'custom-marker',
       html: `
-        <div style="
-          background-color: ${color};
-          width: ${size}px;
-          height: ${size}px;
-          border-radius: 50% 50% 50% 0;
-          transform: rotate(-45deg);
-          border: ${isSelected ? '4px' : '3px'} solid white;
-          box-shadow: 0 3px 6px rgba(0,0,0,0.3);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        ">
-          <div style="
-            transform: rotate(45deg);
-            color: white;
-            font-size: ${isSelected ? '20px' : '16px'};
-          ">🌳</div>
-        </div>
-      `,
+        <div style="background-color: ${color}; width: ${size}px; height: ${size}px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: ${isSelected ? '4px' : '3px'} solid white; box-shadow: 0 3px 6px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center;">
+          <div style="transform: rotate(45deg); color: white; font-size: ${isSelected ? '20px' : '16px'};">🌳</div>
+        </div>`,
       iconSize: [size, size],
       iconAnchor: [size / 2, size],
       popupAnchor: [0, -size],
     });
   };
 
-  // 1. INITIALIZE MAP
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
-
-    const map = L.map(mapRef.current, {
-      maxZoom: 22,
-      zoomControl: true,
-      wheelPxPerZoomLevel: 60 
-    }).setView([10.9388, 122.6322], 13);
-
-    // --- BASE LAYERS ---
-    
-    // Google Hybrid (Satellite + Labels)
-    const googleHybrid = L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-      maxZoom: 22,
-      subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-      attribution: '&copy; Google Maps'
-    });
-
-    // Google Satellite (Pure)
-    const googleSatellite = L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
-      maxZoom: 22,
-      subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-      attribution: '&copy; Google Maps'
-    });
-
-    // Google Terrain
-    const googleTerrain = L.tileLayer('https://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
-      maxZoom: 22,
-      subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-      attribution: '&copy; Google Maps'
-    });
-
-    // CartoDB Dark Matter (High contrast for markers)
-    const darkMatter = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-      subdomains: 'abcd',
-      maxZoom: 20
-    });
-
-    // CartoDB Positron (Clean Light Mode)
-    const lightMode = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-      subdomains: 'abcd',
-      maxZoom: 20
-    });
-
-    // Standard OSM
-    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors'
-    });
-
-    // Default Layer
+    const map = L.map(mapRef.current, { maxZoom: 22, zoomControl: true, wheelPxPerZoomLevel: 60 }).setView([10.9388, 122.6322], 13);
+    const googleHybrid = L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { maxZoom: 22, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'], attribution: '&copy; Google Maps' });
+    const googleSatellite = L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { maxZoom: 22, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'], attribution: '&copy; Google Maps' });
+    const googleTerrain = L.tileLayer('https://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', { maxZoom: 22, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'], attribution: '&copy; Google Maps' });
+    const darkMatter = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; OSM &copy; CARTO', subdomains: 'abcd', maxZoom: 20 });
+    const lightMode = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; OSM &copy; CARTO', subdomains: 'abcd', maxZoom: 20 });
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' });
     googleHybrid.addTo(map);
-
-    // Add Layer Control
-    const baseMaps = {
-      "Satellite (Hybrid)": googleHybrid,
-      "Satellite (Pure)": googleSatellite,
-      "Terrain": googleTerrain,
-      "Light Minimal": lightMode,
-      "Dark Minimal": darkMatter,
-      "Street Map (OSM)": osm
-    };
-    
+    const baseMaps = { "Satellite (Hybrid)": googleHybrid, "Satellite (Pure)": googleSatellite, "Terrain": googleTerrain, "Light Minimal": lightMode, "Dark Minimal": darkMatter, "Street Map (OSM)": osm };
     L.control.layers(baseMaps, {}, { position: 'topright' }).addTo(map);
-
-    // Initialize Marker Cluster Group
-    const clusterGroup = L.markerClusterGroup({
-      spiderfyOnMaxZoom: true,
-      showCoverageOnHover: false,
-      zoomToBoundsOnClick: true,
-      maxClusterRadius: 40,
-    });
-    
+    const clusterGroup = L.markerClusterGroup({ spiderfyOnMaxZoom: true, showCoverageOnHover: false, zoomToBoundsOnClick: true, maxClusterRadius: 40 });
     map.addLayer(clusterGroup);
     clusterGroupRef.current = clusterGroup;
     mapInstanceRef.current = map;
-
-    return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-      }
-    };
+    return () => { if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; } };
   }, []);
 
-  // 2. UPDATE MARKERS
   useEffect(() => {
     if (!mapInstanceRef.current || !clusterGroupRef.current) return;
-
     clusterGroupRef.current.clearLayers();
     markersRef.current = {};
-
     if (trees.length === 0) return;
-
     const bounds = L.latLngBounds([]);
-
     trees.forEach(tree => {
       const isSelected = tree.id === selectedTreeId;
-      const marker = L.marker([tree.latitude, tree.longitude], {
-        icon: createCustomIcon(tree.healthStatus, isSelected),
-      });
-
+      const marker = L.marker([tree.latitude, tree.longitude], { icon: createCustomIcon(tree.healthStatus, isSelected) });
       marker.bindPopup(`
         <div style="min-width: 200px; font-family: sans-serif;">
-          <h3 style="margin: 0 0 8px 0; font-size: 16px; font-weight: bold;">${tree.name}</h3>
-          <div style="font-size: 14px; line-height: 1.6;">
-            <p style="margin: 4px 0;"><strong>Species:</strong> ${tree.species}</p>
-            <p style="margin: 4px 0;"><strong>Status:</strong> <span style="background-color: ${getMarkerColor(tree.healthStatus)}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px;">${tree.healthStatus}</span></p>
-            <p style="margin: 4px 0;"><strong>Age:</strong> ${tree.age} years</p>
-            <p style="margin: 4px 0;"><strong>Added by:</strong> ${tree.addedBy}</p>
-            <p style="margin: 4px 0; font-size: 11px; color: #666;">${new Date(tree.dateAdded).toLocaleDateString()}</p>
+          <div style="background-color: #f0fdf4; padding: 10px; border-radius: 8px; border-left: 4px solid #15803d; margin-bottom: 10px;">
+            <p style="margin: 0; font-size: 10px; text-transform: uppercase; color: #15803d; font-weight: bold; letter-spacing: 0.5px;">Species</p>
+            <h3 style="margin: 2px 0 0 0; font-size: 18px; font-weight: 900; color: #064e3b;">${tree.species}</h3>
           </div>
-        </div>
-      `, {
-        autoClose: true,
-        closeOnClick: true
-      });
-
-      marker.on('click', () => {
-        if (onTreeClick) onTreeClick(tree);
-      });
-
+          <div style="font-size: 14px; line-height: 1.6; padding: 0 5px;">
+            <p style="margin: 4px 0;"><strong>Participants:</strong> ${tree.name}</p>
+            <p style="margin: 4px 0;"><strong>Status:</strong> <span style="background-color: ${getMarkerColor(tree.healthStatus)}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px;">${tree.healthStatus}</span></p>
+            <p style="margin: 4px 0;"><strong>Age:</strong> ${tree.datePlanted ? calculateAge(tree.datePlanted) : `${tree.age} years`}</p>
+            ${tree.datePlanted ? `<p style="margin: 4px 0;"><strong>Planted:</strong> ${new Date(tree.datePlanted).toLocaleDateString()}</p>` : ''}
+            <p style="margin: 4px 0;"><strong>Added by:</strong> ${tree.addedBy}</p>
+            <p style="margin: 10px 0 0 0; font-size: 10px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 5px;">ID: ${tree.id}</p>
+          </div>
+        </div>`, { autoClose: true, closeOnClick: true });
+      marker.on('click', () => { if (onTreeClick) onTreeClick(tree); });
       clusterGroupRef.current!.addLayer(marker);
       markersRef.current[tree.id] = marker;
       bounds.extend([tree.latitude, tree.longitude]);
     });
-
-    if (trees.length > 0 && !selectedTreeId) {
-      mapInstanceRef.current.fitBounds(bounds, { padding: [50, 50] });
-    }
+    if (trees.length > 0 && !selectedTreeId) { mapInstanceRef.current.fitBounds(bounds, { padding: [50, 50] }); }
   }, [trees, selectedTreeId, onTreeClick]);
 
-  // 3. ZOOM TO SELECTED TREE
   useEffect(() => {
     if (!mapInstanceRef.current || !selectedTreeId || !clusterGroupRef.current) return;
-
     const selectedTree = trees.find(t => t.id === selectedTreeId);
     if (selectedTree) {
       const marker = markersRef.current[selectedTreeId];
       if (marker) {
-        clusterGroupRef.current.zoomToShowLayer(marker, () => {
-          marker.openPopup();
-        });
-
-        mapInstanceRef.current.setView([selectedTree.latitude, selectedTree.longitude], 20, {
-          animate: true,
-        });
-      }
+        clusterGroupRef.current.zoomToShowLayer(marker, () => { marker.openPopup(); });
+        mapInstanceRef.current.setView([selectedTree.latitude, selectedTree.longitude], 20, { animate: true });
+      }did 
     }
   }, [selectedTreeId, trees]);
 
-  return (
-    <div 
-      ref={mapRef} 
-      className="rounded-lg shadow-inner" 
-      style={{ width: '100%', height: '100%', minHeight: '400px', zIndex: 0 }} 
-    />
-  );
+  return <div ref={mapRef} className="rounded-lg shadow-inner" style={{ width: '100%', height: '100%', minHeight: '400px', zIndex: 0 }} />;
 }

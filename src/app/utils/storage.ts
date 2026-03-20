@@ -4,15 +4,16 @@ import { getFirestore, collection, addDoc, getDocs, doc, setDoc, updateDoc, dele
 import { app } from '../../firebase/firebase'; // Import initialized app from firebase.ts
 
 export interface TreeData {
+  species: string;
   id: string;
   name: string;
-  species: string;
   healthStatus: 'Excellent' | 'Good' | 'Fair' | 'Poor' | 'Dead';
   age: number;
   latitude: number;
   longitude: number;
   address?: string;
   dateAdded: string; // Store as ISO string
+  datePlanted?: string; // Store as ISO string or YYYY-MM-DD
   addedBy: string;
 }
 
@@ -174,4 +175,3 @@ export const storage = {
     }
   }
 };
-
