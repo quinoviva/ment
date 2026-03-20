@@ -4,17 +4,17 @@ import { getFirestore, collection, addDoc, getDocs, doc, setDoc, updateDoc, dele
 import { app } from '../../firebase/firebase'; // Import initialized app from firebase.ts
 
 export interface TreeData {
-  species: string;
-  id: string;
+  id: string; // Primary key
+  species: string; // User priority
   name: string;
-  healthStatus: 'Excellent' | 'Good' | 'Fair' | 'Poor' | 'Dead';
-  age: number;
-  latitude: number;
+  latitude: number; // Location group
   longitude: number;
-  address?: string;
-  dateAdded: string; // Store as ISO string
-  datePlanted?: string; // Store as ISO string or YYYY-MM-DD
-  addedBy: string;
+  address?: string; // Location group
+  datePlanted?: string; // Temporal info
+  age: number; // Derived, but stored
+  healthStatus: 'Excellent' | 'Good' | 'Fair' | 'Poor' | 'Dead'; // Status
+  dateAdded: string; // System metadata
+  addedBy: string; // System metadata
 }
 
 // User interface for application state, not directly Firebase User object

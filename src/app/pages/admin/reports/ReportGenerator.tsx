@@ -78,7 +78,7 @@ const ReportGenerator: React.FC = () => {
     setIsGenerating(false);
   };
 
-  if (loading) return <div className="p-20 text-center animate-pulse text-green-700 font-bold">Accessing Firestore...</div>;
+  if (loading) return <div className="p-20 text-center animate-pulse text-green-700 font-bold">Accessing Database...</div>;
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
